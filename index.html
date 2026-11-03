@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VM Task Manager v3.0</title>
+<title>VM Task Manager v3.2</title>
 <style>
 :root{
   --bg:#f4f6fa;--surface:#fff;--ink:#1c2333;--muted:#6b7488;--line:#e2e6ee;
@@ -421,6 +421,7 @@ textarea.tx:focus{outline:2px solid var(--brand-l);border-color:var(--brand)}
       <p class="hint">데이터는 이 브라우저에 저장됩니다. 다른 기기로 옮기려면 내보내기 후 불러오세요. 계정·접근 코드는 관리자만 내보내고 불러올 수 있습니다.</p>
       <p class="hint" id="lastChg" style="font-weight:600"></p>
       <div class="hide" id="syncBox" style="margin:0 0 10px"><span class="hint" id="syncStat"></span> <button class="btn sm" id="syncNow">지금 동기화</button></div>
+
       <div class="actions" style="margin-top:0">
         <button class="btn" id="expBtn">내보내기 (JSON)</button>
         <button class="btn" id="impBtn">불러오기</button>
@@ -465,8 +466,24 @@ textarea.tx:focus{outline:2px solid var(--brand-l);border-color:var(--brand)}
 <div class="toast" id="toast"></div>
 
 <script>
-const VERSION = '3.0';
+const VERSION = '3.2';
+/* ===== 배포 설정: Google Apps Script 웹앱 URL(…/exec)을 아래 따옴표 안에 한 번만 입력하고 배포하세요. 비워두면 브라우저 저장만 사용합니다. ===== */
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwHJS7r4qaVTJR1-cYBGFkDre-OqmF16mMI5a2kdgEuv3jMOOMiXWH8ONP0J5rBxfWo/exec';
+const GAS_KEY = '';   // 서버에 ACCESS_KEY를 설정한 경우에만 같은 값 입력 (공개 저장소에서는 소스에 노출됨)
 const RELEASES = [
+  { v:'3.2', date:'2026-11-03', items:[
+    'GitHub(웹)에서 실행 + Google Apps Script 저장 구조를 모든 기기(PC·모바일)에서 안정적으로 동작하도록 보강',
+    '자동 동기화: 화면 복귀·네트워크 재연결·1분 주기로 최신 데이터 확인, 저장 실패 시 15초 후 자동 재시도 (오프라인에서는 기기에 저장 후 연결되면 반영)',
+    '입력 중에는 화면이 갱신되지 않도록 보호하고, 앱을 닫거나 백그라운드로 가는 순간 저장 대기 중인 변경을 즉시 전송',
+    '설정 > 데이터 저장: 연동 미설정 시 안내 표시(GAS_URL 입력 방법), 저장 대기/재시도 상태 표시'
+  ]},
+  { v:'3.1', date:'2026-11-03', items:[
+    '저장 서버 연동 방식 변경: 기기마다 설정하지 않고 index.html 안의 GAS_URL에 Google Apps Script 웹앱 URL을 한 번 삽입해 배포하면 모든 기기가 자동으로 같은 구글 시트를 사용',
+    '설정 화면의 기기별 연동 입력(URL/키/연결/해제)은 제거, 연동 상태 표시와 “지금 동기화”만 유지',
+    '데이터 보호: 접속 후 첫 동기화(불러오기)가 끝나기 전에는 시트로 저장하지 않아 새 기기가 시트 데이터를 덮어쓰지 않음',
+    'GAS_URL이 비어 있으면 기존처럼 브라우저 저장만 사용 / 구글 웹앱 주소로 접속하는 방식도 그대로 지원',
+    'Apps Script 서버(Code.gs): ACCESS_KEY는 선택(설정했을 때만 검사), 설치 안내 갱신'
+  ]},
   { v:'3.0', date:'2026-11-03', items:[
     'RM > “현황 보고” 탭 추가: RM문의에 저장된 데이터를 기반으로 현황 보고 자료 자동 생성 (전체 건수·완료율, 상태별 건수, 담당자별·분류별 현황, 미완료 목록)',
     '현황 보고 조건: 기간(접수일자 기준)·담당자·분류 선택, 목록은 미완료만/전체 선택',
@@ -2307,45 +2324,76 @@ $('v-rmrep').addEventListener('click',async e=>{
   doShare(b.id,{ text:$('rpText').value, canvas:()=>rpCanvas(d), name:'rm_report_'+stamp()+'.png', title:'RM 현황 보고' });
 });
 
-/* ---------- Google Apps Script 연동 (웹앱으로 배포했을 때만 동작) ---------- */
-const GAS = (typeof google!=='undefined' && google.script && google.script.run) ? google.script.run : null;
-const SYNC = { last:null, busy:false, err:'', timer:null, pulled:0 };
-function syncUI(){
-  const box=$('syncBox'); if(!box) return; box.classList.toggle('hide',!GAS); if(!GAS) return;
-  $('syncStat').textContent='구글 시트 연동: '+(SYNC.err?'오류 – '+SYNC.err:SYNC.busy?'동기화 중…':SYNC.last?'동기화됨 ('+fmtDT(SYNC.last)+')':'대기 중');
+/* ---------- Google Apps Script 연동 ---------- */
+// 방식 A) 구글 웹앱 주소로 접속(google.script.run)  방식 B) GitHub 등에서 실행 + 웹앱 URL로 fetch(저장소만 구글)
+const GAS_EMB = (typeof google!=='undefined' && google.script && google.script.run) ? google.script.run : null;
+function gasCfg(){ return /^https:\/\/script\.google(usercontent)?\.com\//.test(GAS_URL) ? { url:GAS_URL, key:GAS_KEY } : null; }
+const gasOn = () => !!(GAS_EMB || gasCfg());
+const SYNC = { last:null, busy:false, err:'', timer:null, pulled:0, ready:false, pending:false, dirty:false, retry:null };
+function gasFetch(c,fn,args,keep){
+  return fetch(c.url,{ method:'POST', keepalive:keep===true, headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({ key:c.key||'', fn, args:args||[] }) })
+    .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+    .then(t=>{ let j; try{ j=JSON.parse(t); }catch(e){ throw new Error('응답을 해석할 수 없습니다 (웹앱 URL/액세스 권한 확인)'); } if(j&&j.error) throw new Error(j.error); return j.result; });
 }
-function gasPush(force){
-  if(!GAS) return; clearTimeout(SYNC.timer);
-  SYNC.timer=setTimeout(()=>{
-    SYNC.busy=true; syncUI();
-    GAS.withSuccessHandler(r=>{ SYNC.busy=false;
-      if(r&&r.ok){ SYNC.last=Date.now(); SYNC.err=''; }
-      else if(r&&r.conflict){ gasPull(false); }
-      else SYNC.err=(r&&r.error)||'저장 실패';
+function gasCall(fn,args){
+  if(GAS_EMB) return new Promise((res,rej)=>{ GAS_EMB.withSuccessHandler(res).withFailureHandler(rej)[fn](...(args||[])); });
+  const c=gasCfg(); if(!c) return Promise.reject(new Error('연동 미설정'));
+  return gasFetch(c,fn,args);
+}
+function syncUI(){
+  const box=$('syncBox'); if(!box) return; const on=gasOn(); box.classList.remove('hide');
+  $('syncNow').classList.toggle('hide',!on);
+  if(!on){ $('syncStat').textContent='저장소 미연동: 데이터가 이 기기(브라우저)에만 저장됩니다. 여러 기기에서 함께 쓰려면 index.html의 GAS_URL에 Apps Script 웹앱 URL을 입력해 배포하세요.'; return; }
+  $('syncStat').textContent='구글 시트 연동'+(GAS_EMB?'(웹앱)':'')+': '+(SYNC.err?'오류 – '+SYNC.err+(SYNC.dirty?' (자동 재시도 예정)':''):SYNC.busy?'동기화 중…':SYNC.pending?'저장 대기 중…':SYNC.last?'동기화됨 ('+fmtDT(SYNC.last)+')':'대기 중');
+}
+function gasPush(force,now){
+  if(!gasOn() || !SYNC.ready){ if(gasOn()) SYNC.dirty=true; return; }
+  clearTimeout(SYNC.timer); SYNC.pending=true; syncUI();
+  const run=()=>{
+    SYNC.timer=null; SYNC.busy=true; syncUI();
+    const json=JSON.stringify(S);
+    const p = GAS_EMB ? gasCall('gasSave',[json,S.lastChanged||0,force===true]) : gasFetch(gasCfg(),'gasSave',[json,S.lastChanged||0,force===true],json.length<60000);
+    p.then(r=>{
+      SYNC.busy=false; SYNC.pending=false;
+      if(r&&r.ok){ SYNC.last=Date.now(); SYNC.err=''; SYNC.dirty=false; }
+      else if(r&&r.conflict){ SYNC.dirty=false; gasPull(false); }
+      else { SYNC.err=(r&&r.error)||'저장 실패'; gasRetry(); }
       syncUI();
-    }).withFailureHandler(er=>{ SYNC.busy=false; SYNC.err=String((er&&er.message)||er); syncUI(); }).gasSave(JSON.stringify(S), S.lastChanged||0, force===true);
-  }, force===true?0:1500);
+    }).catch(er=>{ SYNC.busy=false; SYNC.pending=false; SYNC.err=String((er&&er.message)||er); gasRetry(); syncUI(); });
+  };
+  if(force===true||now===true) run(); else SYNC.timer=setTimeout(run,1500);
+}
+function gasRetry(){ SYNC.dirty=true; clearTimeout(SYNC.retry); SYNC.retry=setTimeout(()=>{ if(SYNC.ready) gasPush(false); else gasPull(true); },15000); }
+function gasEditing(){ const a=document.activeElement; return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.closest && a.closest('.view.on')); }
+function gasAdopt(sv,quiet){
+  S=normalize(sv); try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){}
+  if(SES && PG && PG!=='set'){ try{ rmEdit=null; navigate(PG); }catch(e){} } else if(PG==='set'){ try{ renderSettings(); }catch(e){} }
+  try{ renderNav(); }catch(e){}
+  if(!quiet) toast('구글 시트의 최신 데이터를 불러왔습니다'); SYNC.last=Date.now();
 }
 function gasPull(quiet){
-  if(!GAS) return; SYNC.busy=true; syncUI();
-  GAS.withSuccessHandler(r=>{
-    SYNC.busy=false; SYNC.err='';
+  if(!gasOn() || SYNC.busy) return; SYNC.busy=true; syncUI(); SYNC.pulled=Date.now();
+  gasCall('gasLoad',[]).then(r=>{
+    SYNC.busy=false; SYNC.err=''; SYNC.ready=true;
     let sv=null; try{ sv=r?JSON.parse(r):null; }catch(e){ sv=null; }
     const sl=sv&&sv.lastChanged||0, ll=S.lastChanged||0;
-    if(sv && sl>ll){
-      S=normalize(sv); try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){}
-      if(SES && PG && PG!=='set'){ try{ rmEdit=null; navigate(PG); }catch(e){} } else if(PG==='set'){ try{ renderSettings(); }catch(e){} }
-      renderNav(); if(!quiet) toast('구글 시트의 최신 데이터를 불러왔습니다');
-      SYNC.last=Date.now();
-    } else if(ll>sl){ gasPush(true); }
+    if(sv && sl>ll){ if(quiet && gasEditing()) SYNC.pulled=0; else gasAdopt(sv,quiet); }
+    else if(ll>sl || SYNC.dirty){ SYNC.dirty=false; gasPush(true); }
     else SYNC.last=Date.now();
     syncUI();
-  }).withFailureHandler(er=>{ SYNC.busy=false; SYNC.err=String((er&&er.message)||er); syncUI(); }).gasLoad();
+  }).catch(er=>{ SYNC.busy=false; SYNC.err=String((er&&er.message)||er); if(SYNC.ready) gasRetry(); syncUI(); });
 }
-if($('syncNow')) $('syncNow').onclick=()=>{ gasPull(false); };
-if(GAS){
-  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && Date.now()-SYNC.pulled>20000){ SYNC.pulled=Date.now(); gasPull(true); } });
-}
+function gasAuto(){ if(gasOn() && document.visibilityState==='visible' && Date.now()-SYNC.pulled>20000) gasPull(true); }
+if($('syncNow')) $('syncNow').onclick=()=>{ if(!gasOn()){ toast('연동이 설정되지 않았습니다'); return; } SYNC.busy=false; gasPull(false); };
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'){ if(gasOn() && SYNC.ready && SYNC.pending && SYNC.timer){ gasPush(false,true); } }
+  else gasAuto();
+});
+window.addEventListener('pagehide',()=>{ if(gasOn() && SYNC.ready && SYNC.pending && SYNC.timer) gasPush(false,true); });
+window.addEventListener('online',()=>{ SYNC.pulled=0; gasAuto(); });
+window.addEventListener('pageshow',e=>{ if(e.persisted){ SYNC.pulled=0; gasAuto(); } });
+window.addEventListener('focus',gasAuto);
+setInterval(()=>{ if(gasOn() && !SYNC.busy && !SYNC.timer && Date.now()-SYNC.pulled>60000) gasAuto(); },30000);
 
 /* boot */
 (function(){
@@ -2356,7 +2404,7 @@ if(GAS){
   else if(u){ SES={ pages:[], settings:null, acct:null, label:'', code:'' }; applyAcct(u); startApp(); }
   else { applyAuthUI(); show('gate'); }
 })();
-if(GAS){ SYNC.pulled=Date.now(); gasPull(true); }
+if(gasOn()){ SYNC.pulled=Date.now(); gasPull(true); }
 </script>
 </body>
 </html>
