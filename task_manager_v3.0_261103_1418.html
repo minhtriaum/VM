@@ -1,0 +1,2362 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VM Task Manager v3.0</title>
+<style>
+:root{
+  --bg:#f4f6fa;--surface:#fff;--ink:#1c2333;--muted:#6b7488;--line:#e2e6ee;
+  --brand:#3b5bdb;--brand-d:#2f49b0;--brand-l:#e8edff;
+  --assign:#d9822b;--assign-l:#fff1e0;
+  --prog:#2f7de1;--prog-l:#e3efff;
+  --done:#2e9e6a;--done-l:#e0f5ec;
+  --ans:#8a4fd1;--ans-l:#f1e8fc;
+  --danger:#d64545;--radius:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;font-size:15px;line-height:1.45}
+button{font:inherit;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+input,select,textarea{font:inherit;color:inherit}
+code{background:#eef0f4;border-radius:5px;padding:1px 6px;font-size:13px}
+.app{max-width:960px;margin:0 auto;padding:0 16px 80px}
+.hide{display:none!important}
+#rSortSel,#vSortSel,#oSortSel{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:14px;color:var(--ink)}
+.attl{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+.impbar{display:flex;gap:8px;margin-left:auto;align-items:center}
+.fold{border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:#fafbfd}.fold summary{cursor:pointer;font-weight:600;font-size:13.5px;color:var(--muted)}
+.rrow.head .sortable,.row.head .sortable{cursor:pointer;user-select:none}.rrow.head .sortable:hover{color:var(--ink)}
+
+header.top{position:sticky;top:0;z-index:20;background:var(--bg);padding:12px 0 0;border-bottom:1px solid var(--line)}
+.hrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hrow.a{margin-bottom:4px}
+header.top h1{margin:0;font-size:20px;letter-spacing:-.3px;display:flex;align-items:baseline;gap:8px;flex:1;min-width:180px}
+.ver{font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-l);padding:2px 8px;border-radius:999px}
+.me{font-size:13px;color:var(--muted)}
+.me b{color:var(--ink)}
+.today{font-size:12.5px;color:var(--muted);flex:1;margin-bottom:6px}
+.menu{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px}
+.mbtn{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font-weight:600;font-size:14px;color:var(--muted)}
+.mbtn.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.tabs{display:grid;gap:0;margin-top:2px}
+.tab{border:0;background:transparent;padding:8px 4px 8px;border-bottom:3px solid transparent;color:var(--muted);font-weight:600;font-size:14px;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.2}
+.tab b{font-size:18px;color:var(--ink);font-weight:700}
+.tab.on{color:var(--brand);border-bottom-color:var(--brand)}.tab.on b{color:var(--brand)}
+.tab[data-f="배정"].on,.tab[data-f="접수"].on{color:var(--assign);border-bottom-color:var(--assign)}.tab[data-f="배정"].on b,.tab[data-f="접수"].on b{color:var(--assign)}
+.tab[data-f="진행"].on{color:var(--prog);border-bottom-color:var(--prog)}.tab[data-f="진행"].on b{color:var(--prog)}
+.tab[data-f="답변"].on,.tab[data-f="협업진행"].on{color:var(--ans);border-bottom-color:var(--ans)}.tab[data-f="답변"].on b,.tab[data-f="협업진행"].on b{color:var(--ans)}
+.tab[data-f="완료"].on{color:var(--done);border-bottom-color:var(--done)}.tab[data-f="완료"].on b{color:var(--done)}
+.tabs .tab[data-f="배정"].on{color:var(--prog);border-bottom-color:var(--prog)}.tabs .tab[data-f="배정"].on b{color:var(--prog)}
+.tabs.vm .tab[data-f="배정"].on{color:var(--assign);border-bottom-color:var(--assign)}.tabs.vm .tab[data-f="배정"].on b{color:var(--assign)}
+
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:9px;color:var(--ink);font-weight:500}
+.btn:hover:not(:disabled){border-color:#c7cddb}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover:not(:disabled){background:var(--brand-d)}
+.btn.danger{color:var(--danger)}
+.btn.sm{padding:5px 10px;font-size:13px}
+.view{display:none;padding-top:16px}
+.view.on{display:block}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.expbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.explbl{font-size:12.5px;color:var(--muted);font-weight:600}
+.search{flex:1 1 160px;min-width:140px;border:1px solid var(--line);border-radius:9px;padding:8px 12px;background:var(--surface)}
+.cats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:13px;color:var(--muted)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.chip b{margin-left:4px}
+.list{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.row{display:grid;grid-template-columns:96px 64px 1fr 130px;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row.head{background:#fafbfd;color:var(--muted);font-size:12.5px;font-weight:600;padding:9px 16px}
+.row.item{cursor:pointer}
+.row.item:hover{background:#f8faff}
+.row .t{font-weight:600;word-break:break-word}
+.row .t small{display:block;font-weight:400;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .who{color:var(--muted);font-size:13.5px}
+.row .date{font-size:12.5px}
+.row .kind .cat{margin:0}.cat.task{background:var(--prog-l);color:var(--prog)}.cat.share{background:var(--brand-l);color:var(--brand)}
+.row .t .badge,.rrow .t .badge{padding:1px 8px;font-size:11.5px;margin-right:6px;vertical-align:1px}
+.tno{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom;background:var(--brand-l);color:var(--brand);font-weight:700;font-size:13px;padding:2px 9px;border-radius:6px}
+.rrow.item .t{font-size:16px;line-height:1.35}
+.rrow.item .m{font-size:12.5px}
+.rrow.item .tno{font-size:12.5px}
+.rrow.item .dt{font-size:12.5px}
+.rrow.item .t small{font-size:12px;margin-top:2px}
+.rrow.item .t .badge{font-size:11px;padding:1px 7px}
+.rrow.item .rpl{font-size:11px}
+.rrow.head{font-size:12px}
+.rpl{font-size:11.5px;font-weight:700;color:var(--ans);margin-left:6px}
+.rrow .m{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:640px){
+  .rrow.rm{display:grid!important;grid-template-columns:auto auto 1fr auto!important;grid-template-areas:"n c o d" "t t t t";gap:4px 8px!important;padding:10px 12px;align-items:center}
+  .rrow.rm>div:nth-child(1){grid-area:n}.rrow.rm>div:nth-child(2){grid-area:d;text-align:right}.rrow.rm>div:nth-child(3){grid-area:c}.rrow.rm>div:nth-child(4){grid-area:t;order:0}.rrow.rm>div:nth-child(5){grid-area:o}
+  .rrow.rm .m{font-size:11px}.rrow.rm .m .dt{font-size:11px}.rrow.rm .tno{font-size:11px;padding:1px 7px}
+  .rrow.rm .t{font-size:12px;line-height:1.4}.rrow.rm .t small{font-size:10.5px;margin-top:1px}
+  .rrow.rm .t .badge{font-size:10px;padding:0 6px}.rrow.rm .rpl{font-size:10px}
+}
+.dt{color:var(--muted);white-space:nowrap}
+.dt em{font-style:normal;margin-left:2px;font-weight:600}
+.dt em.sun{color:#d64545}.dt em.sat{color:#2f7de1}
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.badge.s0{background:var(--assign-l);color:var(--assign)}
+.badge.s1{background:var(--prog-l);color:var(--prog)}
+.badge.s2{background:var(--done-l);color:var(--done)}
+.badge.s3{background:var(--ans-l);color:var(--ans)}
+.cat{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:6px;background:#eef0f4;color:#4a5368;margin-right:5px}
+.empty{padding:48px 16px;text-align:center;color:var(--muted)}
+@media(max-width:640px){
+  .row{grid-template-columns:1fr auto;grid-template-areas:"d k" "t t" "w w";gap:4px 10px}
+  .row.head{display:none}
+  .row .date{grid-area:d}.row .t{grid-area:t}.row .who{grid-area:w}.row .kind{grid-area:k}
+  .rrow{display:flex!important;flex-wrap:wrap;gap:4px 10px!important}
+  .rrow>div{flex:0 1 auto}.rrow>.grow{flex:1 1 100%;order:5}.rrow.head{display:none!important}
+}
+.rrow{display:grid;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.rrow:last-child{border-bottom:0}
+.rrow.head{background:#fafbfd;color:var(--muted);font-size:12.5px;font-weight:600;padding:9px 16px}
+.rrow.item{cursor:pointer}.rrow.item:hover{background:#f8faff}
+.rrow .t{font-weight:600;word-break:break-word}
+.rrow .t small{display:block;font-weight:400;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rrow .m{color:var(--muted);font-size:13.5px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.panel h2{margin:0 0 12px;font-size:16px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px;font-weight:600}
+.field input[type=text],.field input[type=date],.field input[type=password],.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:#fff}
+.field textarea{min-height:140px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus,.search:focus{outline:2px solid var(--brand-l);border-color:var(--brand)}
+.dline{display:flex;align-items:center;gap:8px}
+.dline input{flex:1}
+.wd{flex:none;font-weight:700;font-size:13px;padding:6px 10px;border-radius:8px;background:#eef0f4;color:var(--muted)}
+.wd.sun{background:#fde8e8;color:#d64545}.wd.sat{background:#e3efff;color:#2f7de1}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.three{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:12px}
+@media(max-width:560px){.two,.three{grid-template-columns:1fr}}
+.stepedit{display:grid;grid-template-columns:28px 1fr 150px auto;gap:6px;align-items:center;margin-bottom:8px}
+.stepedit .no{width:26px;height:26px;border-radius:50%;background:var(--brand-l);color:var(--brand);font-weight:700;font-size:13px;display:grid;place-items:center}
+.stepedit input{border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+.stepedit .acts{display:flex;gap:3px}
+.icon{border:1px solid var(--line);background:#fff;border-radius:7px;width:30px;height:32px;padding:0;color:var(--muted)}
+.icon:hover:not(:disabled){color:var(--ink);border-color:#c7cddb}
+@media(max-width:560px){
+  .stepedit{grid-template-columns:28px 1fr;grid-template-areas:"n a" ". o" ". c"}
+  .stepedit .no{grid-area:n}.stepedit .nm{grid-area:a}.stepedit .ow{grid-area:o}.stepedit .acts{grid-area:c}
+}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.actions .sp{flex:1}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 4px 18px rgba(30,40,80,.06)}
+.card .meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;margin-bottom:6px}
+.card h2{margin:0 0 4px;font-size:22px;letter-spacing:-.3px;word-break:break-word}
+.card .who{color:var(--muted);font-size:14px}
+.kv{display:grid;grid-template-columns:90px 1fr;gap:6px 12px;margin:12px 0;font-size:14.5px}
+.kv dt{color:var(--muted);font-weight:600}.kv dd{margin:0;word-break:break-word}
+.body{white-space:pre-wrap;word-break:break-word;background:#fafbfd;border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:10px}
+.prog{height:6px;background:var(--line);border-radius:99px;margin:14px 0 4px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--done);transition:width .25s}
+.progtxt{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+.flowtitle{font-size:12.5px;font-weight:700;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin:14px 0 8px}
+.flow{display:flex;flex-direction:column;align-items:stretch}
+.node{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff}
+.node.done{background:#f3fbf7;border-color:#cdeedd}
+.node .no{flex:none;width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center}
+.node.done .no{background:var(--done)}
+.node .nm{flex:1;font-weight:600;word-break:break-word}
+.node.done .nm{text-decoration:line-through;color:var(--muted)}
+.node .ow{flex:none;background:var(--brand-l);color:var(--brand);padding:3px 10px;border-radius:999px;font-size:13px;font-weight:600}
+.node .ow.none{background:#eef0f4;color:var(--muted)}
+.node input[type=checkbox]{width:18px;height:18px;accent-color:var(--done);flex:none}
+.arrow{align-self:center;color:#aab2c5;font-size:18px;line-height:1;padding:3px 0}
+.imgonly{display:none!important}body.img-on .imgonly{display:inline-flex!important}
+.imgopt{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);padding:0 4px;cursor:pointer}
+.sharebar .push{margin-left:auto;display:flex;gap:8px}
+.savebtn{background:var(--ink)!important;border-color:var(--ink)!important;color:#fff!important}
+.autost{font-size:12.5px;color:var(--muted);margin-top:12px;min-height:18px}.autost.ok{color:var(--done)}.autost.err{color:#c2304a}
+.autod{font-size:12.5px;color:var(--muted);align-self:center}
+.sharebar{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px dashed var(--line)}
+.stbtns{display:flex;gap:6px;flex-wrap:wrap}.stb{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 14px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+.stb.on.s0{background:var(--assign-l);color:var(--assign);border-color:var(--assign)}.stb.on.s1{background:var(--prog-l);color:var(--prog);border-color:var(--prog)}.stb.on.s2{background:var(--done-l);color:var(--done);border-color:var(--done)}.stb.on.s3{background:var(--ans-l);color:var(--ans);border-color:var(--ans)}
+.stsel{border:1px solid var(--line);border-radius:999px;padding:3px 8px;background:#fff;font-weight:600;font-size:13px}
+.srow{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
+.srow span{flex:1}
+.addrow{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.addrow input,.addrow select{flex:1;min-width:120px;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:#fff}
+.settop{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.settop h2{margin:0;flex:1;font-size:18px}
+.note{margin-bottom:18px}
+.note h3{margin:0 0 6px;font-size:15px}
+.note h3 small{color:var(--muted);font-weight:400;margin-left:6px}
+.note ul{margin:0;padding-left:20px;color:#3a4358}
+.hint{color:var(--muted);font-size:13px;margin:0 0 10px}
+.tag{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px}
+.tag.admin{background:#ffe8ec;color:#c2304a}.tag.manager{background:var(--brand-l);color:var(--brand)}.tag.must{background:var(--assign-l);color:var(--assign)}.tag.code{background:var(--done-l);color:var(--done)}
+.acc{border-bottom:1px solid var(--line);padding:10px 0}
+.acc:last-child{border-bottom:0}
+.acc .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.acc .top .id{font-weight:600;min-width:120px}
+.perms{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px 12px;margin-top:10px;padding:10px 12px;background:#fafbfd;border:1px solid var(--line);border-radius:10px}
+.perms label{font-size:13.5px;display:flex;gap:7px;align-items:center}
+details summary{cursor:pointer;color:var(--brand);font-size:13px;font-weight:600;margin-top:6px}
+.mrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)}
+.mrow:last-child{border-bottom:0}
+.mrow input[type=text]{width:140px;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.mrow .desc{color:var(--muted);font-size:12.5px;flex:1;min-width:90px}
+.mrow label{font-size:13.5px;display:flex;gap:5px;align-items:center}
+.outs{display:flex;gap:10px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.stat{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fafbfd}
+.stat h3{margin:0 0 6px;font-size:13px;color:var(--muted)}
+.stat b{font-size:28px}
+.stat small{display:block;color:var(--muted);margin-top:4px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;margin-bottom:12px}
+.seg button{border:0;background:transparent;padding:7px 18px;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--ink);color:#fff}
+textarea.tx{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-family:inherit;font-size:14px;line-height:1.5;resize:vertical;background:#fff}
+textarea.tx:focus{outline:2px solid var(--brand-l);border-color:var(--brand)}
+.hdsel{display:flex;gap:6px;flex-wrap:wrap}
+.hdsel .chip{padding:7px 18px;font-size:14px;font-weight:600}
+.stepedit.f3{grid-template-columns:28px 1fr auto}
+.rrrow{display:grid;grid-template-columns:28px 1.2fr 1fr 1.5fr auto;gap:6px;align-items:start;margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed var(--line)}
+.rrrow .no{width:26px;height:26px;border-radius:50%;background:var(--brand-l);color:var(--brand);font-weight:700;font-size:13px;display:grid;place-items:center;margin-top:5px}
+.rrrow input{border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+.rrrow textarea.tx{padding:7px 10px;font-size:14px;min-height:38px}
+.rrrow .acts{display:flex;gap:3px;margin-top:3px}
+@media(max-width:620px){
+  .stepedit.f3{grid-template-columns:28px 1fr;grid-template-areas:"n a" ". c"}
+  .rrrow{grid-template-columns:28px 1fr;grid-template-areas:"n t" ". o" ". f" ". c"}
+  .rrrow .no{grid-area:n}.rrrow .t{grid-area:t}.rrrow .o{grid-area:o}.rrrow .f{grid-area:f}.rrrow .acts{grid-area:c}
+}
+.rrflow{display:flex;flex-wrap:wrap;gap:8px 4px;align-items:center;margin:8px 0 4px}
+.fbox{display:inline-flex;gap:8px;align-items:center;background:#f3f6ff;border:1px solid #d5defa;border-radius:12px;padding:8px 12px;font-weight:600}
+.fbox b{background:var(--brand);color:#fff;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px}
+.farr{color:#aab2c5;font-weight:700;padding:0 3px}
+.nchip{display:inline-block;padding:2px 11px;border-radius:999px;font-weight:700;font-size:13px;margin:0 4px 4px 0}
+.legend{margin:8px 0 2px}
+.tw{overflow-x:auto}
+.rrt{width:100%;border-collapse:collapse;margin-top:8px;min-width:480px}
+.rrt th{background:var(--ink);color:#fff;text-align:left;padding:9px 12px;font-size:13px}
+.rrt td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;white-space:pre-wrap;word-break:break-word}
+.rrt td:first-child{border-left:4px solid var(--bar,transparent);font-weight:600}
+.rrt tr:nth-child(even) td{background:#fafbfe}
+.sect{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.4px;margin:16px 0 4px}
+.flash{animation:flashrow 2.6s ease}
+@keyframes flashrow{0%,55%{background:#fff3c4}100%{background:transparent}}
+.field .dline input.dsm{width:148px;flex:none;font-size:13px;padding:5px 8px}
+.dline .wd{font-size:12px;padding:5px 8px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:#1c2333;color:#fff;padding:10px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:.2s;z-index:80;font-size:14px;max-width:90vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.loginbox{max-width:360px;margin:40px auto 0}
+.loginbox h2{text-align:center;margin-bottom:4px}
+.loginbox .sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:16px}
+.err{color:var(--danger);font-size:13px;min-height:18px;margin:4px 0 8px}
+.linkbtn{background:none;border:0;color:var(--muted);font-size:13px;text-decoration:underline;margin-top:14px;display:block;width:100%;text-align:center}
+.overlay{position:fixed;inset:0;background:rgba(20,26,45,.5);z-index:60;display:none;align-items:center;justify-content:center;padding:16px}
+.overlay.on{display:flex}
+.modal{background:#fff;border-radius:14px;padding:22px;width:100%;max-width:380px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.modal h2{margin:0 0 6px;font-size:17px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="hrow a">
+      <h1>VM Task Manager <span class="ver" id="verBadge"></span></h1>
+      <span class="me hide" id="meBox"><b id="meName"></b></span>
+      <button class="btn sm hide" id="pwBtn">비밀번호 변경</button>
+      <button class="btn sm" id="gearBtn" title="설정" aria-label="설정">⚙</button>
+      <button class="btn sm hide" id="outBtn">로그아웃</button>
+    </div>
+    <div class="hrow"><span class="today" id="today"></span></div>
+    <nav class="menu hide" id="menu"></nav>
+    <nav class="tabs hide" id="tabs"></nav>
+  </header>
+
+  <!-- 접근 코드 입력 -->
+  <section class="view on" id="v-gate">
+    <div class="panel loginbox">
+      <h2>VM Task Manager</h2>
+      <div class="field"><input type="password" id="gCode" autocomplete="off" autocapitalize="off"></div>
+      <div class="err" id="gErr"></div>
+      <button class="btn primary" id="gBtn" style="width:100%">입장</button>
+    </div>
+  </section>
+
+  <!-- 설정 계정 로그인 -->
+  <section class="view" id="v-slogin">
+    <div class="panel loginbox">
+      <h2>설정 로그인</h2>
+      <div class="sub">설정 페이지는 계정으로 로그인합니다</div>
+      <div class="field"><label>아이디</label><input type="text" id="lId" autocomplete="username" autocapitalize="off"></div>
+      <div class="field"><label>비밀번호</label><input type="password" id="lPw" autocomplete="current-password"></div>
+      <div class="err" id="lErr"></div>
+      <button class="btn primary" id="lBtn" style="width:100%">로그인</button>
+      <button class="linkbtn" id="toGate">← 접근 코드 입력으로</button>
+    </div>
+  </section>
+
+  <!-- VM -->
+  <section class="view" id="v-list">
+    <div id="seg1"></div>
+    <div class="toolbar">
+      <input class="search" id="q" type="search" placeholder="제목·담당자 검색">
+      <select id="vSortSel" style="width:auto"></select>
+      <button class="btn primary" id="newBtn">+ 새 Task</button>
+    </div>
+    <div class="cats" id="srcs"></div>
+    <div class="cats" id="cats"></div>
+    <div class="list" id="list"></div>
+    <div class="toolbar" style="margin-top:14px"><div class="expbar" id="expVm"></div></div>
+  </section>
+  <section class="view" id="v-card"></section>
+  <section class="view" id="v-edit">
+    <div class="panel">
+      <h2 id="editTitle">새 Task</h2>
+      <div class="three">
+        <div class="field"><label>일자</label>
+          <div class="dline"><input type="date" class="dsm" id="fDate"><span class="wd" id="fWd"></span></div></div>
+        <div class="field"><label>카테고리</label>
+          <select id="fCat"><option>보고</option><option>제안</option><option>기획</option><option>R&amp;R</option></select></div>
+        <div class="field"><label>현황</label>
+          <select id="fStatus"><option>배정</option><option>진행</option><option>완료</option></select></div>
+      </div>
+      <div class="field"><label>제목 (Task name)</label><input type="text" id="fTitle" placeholder="예) 2027 SIC 헬프데스크 요원 안내문 배포"></div>
+      <div class="field">
+        <label>Work flow · 업무 프로세스와 단계별 담당자</label>
+        <div id="steps"></div>
+        <button class="btn sm" id="addStep">+ 단계 추가</button>
+      </div>
+      <div class="field"><label>작성자</label><select id="fAuthor" style="max-width:260px"></select></div>
+      <div class="actions">
+        <button class="btn primary" id="saveBtn">저장</button>
+        <button class="btn" id="cancelBtn">취소</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- VM 공유 -->
+  <section class="view" id="v-share">
+    <div id="seg2"></div>
+    <div class="panel" id="dForm"></div>
+    <div class="panel" id="shOut" style="margin-top:14px"></div>
+  </section>
+
+  <!-- RM / HL 공용 -->
+  <section class="view" id="v-rmshare">
+    <div id="seg3"></div>
+    <div class="panel" id="rmForm"></div>
+    <div class="panel" id="rmOut" style="margin-top:14px"></div>
+  </section>
+  <section class="view" id="v-rec">
+    <div id="seg4"></div>
+    <div class="toolbar">
+      <input class="search" id="rq" type="search" placeholder="검색">
+      <select id="rSortSel" class="hide" style="width:auto"></select>
+      <button class="btn primary" id="rNew">+ 새로 등록</button>
+    </div>
+    <div class="list" id="rlist"></div>
+    <div class="toolbar" style="margin-top:14px;flex-wrap:wrap"><div class="expbar" id="expRec"></div>
+      <span class="impbar hide" id="rmImp"><button class="btn sm" id="rmUp">엑셀 업로드</button><button class="btn sm" id="rmSample">샘플 양식 다운로드</button><input type="file" id="rmFile" accept=".xlsx,.csv" hidden></span></div>
+  </section>
+  <section class="view" id="v-rmrep">
+    <div id="seg5"></div>
+    <div class="panel" id="rpForm"></div>
+    <div class="panel" id="rpOut" style="margin-top:14px"></div>
+  </section>
+  <section class="view" id="v-recd"></section>
+  <section class="view" id="v-rece"><div class="panel" id="rForm"></div></section>
+  <datalist id="peopleList"></datalist>
+  <datalist id="typeList"></datalist>
+  <datalist id="catList"></datalist>
+
+  <!-- OH -->
+  <section class="view" id="v-oh"></section>
+
+  <!-- 설정 -->
+  <section class="view" id="v-set">
+    <div class="settop">
+      <div style="display:flex;align-items:center;gap:10px;flex:1"><button class="btn sm" id="setHome">← 일반 페이지로</button><h2 style="margin:0">설정</h2></div>
+      <button class="btn sm hide" id="noteBtn">릴리즈 노트 · <span class="rv"></span></button>
+    </div>
+    <div class="panel hide" id="secMenu" style="margin-bottom:14px">
+      <h2 id="secMenuHd" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;margin:0">페이지 메뉴 · 출력 유형 <span id="secMenuCaret" style="color:var(--muted)">▸</span></h2>
+      <div id="secMenuBody" class="hide" style="margin-top:10px">
+      <p class="hint">메뉴 표시 여부·이름·순서와, 페이지별로 제공할 내보내기 형식(CSV·XLSX·Word·PDF)을 선택합니다.</p>
+      <div id="mList"></div></div>
+    </div>
+    <div class="panel hide" id="secFmt" style="margin-bottom:14px">
+      <h2>공유 형식 (공통)</h2>
+      <p class="hint">카드·상세 화면에서 제공할 공유 방식을 선택합니다.</p>
+      <div class="outs" id="fmtList"></div>
+    </div>
+    <div class="panel hide" id="secAccBtn" style="margin-bottom:14px">
+      <h2>페이지 접근 권한</h2>
+      <p class="hint">접근 코드 패턴과 코드별 허용 페이지를 설정합니다.</p>
+      <button class="btn primary" id="accOpen">접근 권한 · 패턴 코드 설정 열기</button>
+    </div>
+    <div class="panel hide" id="secTpl" style="margin-bottom:14px">
+      <h2>템플릿 수정</h2>
+      <p class="hint">페이지별 내용 기본 틀 · 공유 텍스트 틀과 카테고리(TF) 목록을 수정합니다.</p>
+      <button class="btn primary" id="tplOpen">템플릿 수정 열기</button>
+    </div>
+    <div class="panel hide" id="secPeople" style="margin-bottom:14px">
+      <h2>담당자 관리</h2>
+      <p class="hint">등록한 담당자는 Work flow·티켓 담당자에서 바로 선택할 수 있습니다. (직접 입력하면 자동 등록)</p>
+      <div class="addrow"><input type="text" id="pName" placeholder="담당자 이름"><button class="btn primary" id="pAdd">추가</button></div>
+      <div id="pList"></div>
+    </div>
+    <div class="panel hide" id="secAcc" style="margin-bottom:14px">
+      <h2>계정 관리 · 권한 설정 (설정 페이지용)</h2>
+      <p class="hint">새 계정의 초기 비밀번호는 1234이며, 첫 로그인 시 변경해야 합니다. 매니저 계정은 아래 항목만 설정 페이지에서 사용할 수 있습니다.</p>
+      <div class="addrow">
+        <input type="text" id="aId" placeholder="새 아이디 (영문·숫자 3자 이상)" autocapitalize="off">
+        <select id="aRole"><option value="manager">매니저</option><option value="admin">관리자</option></select>
+        <button class="btn primary" id="aAdd">계정 추가</button>
+      </div>
+      <div id="aList"></div>
+    </div>
+    <div class="panel hide" id="secData">
+      <h2>데이터 저장</h2>
+      <p class="hint">데이터는 이 브라우저에 저장됩니다. 다른 기기로 옮기려면 내보내기 후 불러오세요. 계정·접근 코드는 관리자만 내보내고 불러올 수 있습니다.</p>
+      <p class="hint" id="lastChg" style="font-weight:600"></p>
+      <div class="hide" id="syncBox" style="margin:0 0 10px"><span class="hint" id="syncStat"></span> <button class="btn sm" id="syncNow">지금 동기화</button></div>
+      <div class="actions" style="margin-top:0">
+        <button class="btn" id="expBtn">내보내기 (JSON)</button>
+        <button class="btn" id="impBtn">불러오기</button>
+        <span class="sp"></span>
+        <button class="btn danger hide" id="resetBtn">업무 데이터 전체 초기화</button>
+      </div>
+      <input type="file" id="impFile" accept=".json,application/json" hidden>
+    </div>
+    <div class="empty hide" id="secNone">이 계정에서 사용할 수 있는 설정 항목이 없습니다.</div>
+  </section>
+
+  <section class="view" id="v-acc">
+    <div class="settop"><h2>접근 권한 · 패턴 코드</h2><button class="btn sm" id="accBack">← 설정</button></div>
+    <div id="accMount"></div>
+  </section>
+
+  <section class="view" id="v-tpl">
+    <div class="settop"><h2>템플릿 수정</h2><button class="btn sm" id="tplBack">← 설정</button></div>
+    <div id="tplBody"></div>
+  </section>
+
+  <section class="view" id="v-note">
+    <div class="settop"><h2>릴리즈 노트</h2><button class="btn sm" id="noteBack">← 설정</button></div>
+    <div class="panel" id="noteBody"></div>
+  </section>
+</div>
+
+<div class="overlay" id="pwOv">
+  <div class="modal">
+    <h2 id="pwTitle">비밀번호 변경</h2>
+    <p class="hint" id="pwHint"></p>
+    <div class="field" id="pwCurWrap"><label>현재 비밀번호</label><input type="password" id="pwCur" autocomplete="current-password"></div>
+    <div class="field"><label>새 비밀번호 (4자 이상, 1234 불가)</label><input type="password" id="pwNew" autocomplete="new-password"></div>
+    <div class="field"><label>새 비밀번호 확인</label><input type="password" id="pwNew2" autocomplete="new-password"></div>
+    <div class="err" id="pwErr"></div>
+    <div class="actions" style="margin-top:4px">
+      <button class="btn primary" id="pwSave">변경</button>
+      <button class="btn" id="pwCancel">취소</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const VERSION = '3.0';
+const RELEASES = [
+  { v:'3.0', date:'2026-11-03', items:[
+    'RM > “현황 보고” 탭 추가: RM문의에 저장된 데이터를 기반으로 현황 보고 자료 자동 생성 (전체 건수·완료율, 상태별 건수, 담당자별·분류별 현황, 미완료 목록)',
+    '현황 보고 조건: 기간(접수일자 기준)·담당자·분류 선택, 목록은 미완료만/전체 선택',
+    '현황 보고 공유: 텍스트 복사(수정 가능) / 이미지 저장 / 공유 (이미지 포함 옵션 동일)',
+    'Google Apps Script 연동 세팅: 웹앱으로 배포하면 구글 시트에 데이터가 저장·동기화되어 여러 기기/사용자가 같은 데이터를 사용 (설정 > 데이터 저장에서 상태 확인·지금 동기화). 일반 브라우저/GitHub에서는 기존처럼 브라우저 저장소 사용',
+    'Apps Script 설치 파일(Code.gs, appsscript.json, 설치 안내) 제공'
+  ]},
+  { v:'2.9', date:'2026-11-03', items:[
+    'RM문의: 답변을 저장하면 현황이 “완료”로 변경되어 완료로 분리 (엑셀 업로드 시 답변이 있고 현황이 비어 있는 행도 “완료”)',
+    '설정: “페이지 메뉴 · 출력 유형” 박스를 접기/펼치기로 변경 (기본값 접힘, 제목을 눌러 펼침)',
+    '설정 > 데이터 저장: 마지막 변경 데이터 시간 표시. 불러오기 전 확인창에 현재 데이터와 파일의 마지막 변경 시각을 함께 보여주고, 현재 데이터가 더 최신이면 경고, 불러온 뒤에도 파일의 마지막 변경 시각을 유지해 표시',
+    '데이터 내보내기/불러오기 보완: OH 기록, RM 분류 목록, 작성자 목록, 내용 템플릿이 누락되던 문제 수정 (이전 파일도 그대로 불러올 수 있음)',
+    'GitHub 등록용 세팅 파일 제공 (index.html, README, CHANGELOG, .gitignore, GitHub Pages 배포 워크플로우)'
+  ]},
+  { v:'2.8', date:'2026-11-03', items:[
+    'RM 공유: “티켓ID” → “Task No” 텍스트 수정, 담당자 기본값은 “선택 안 함”, 접수일자는 오늘 날짜가 기본 입력 (옵션 유지 – “지우기”로 미선택 가능)',
+    'RM문의: 검색 안내 문구와 목록 열·상세·수정·내보내기·샘플 양식의 “티켓번호/티켓ID/티켓No” 표기를 “Task No”로 통일',
+    'RM 현황 이름 조정: 접수 → 접수 / 배정 → 진행 / 답변 → 협업진행 / 완료 → 완료 (기존 데이터는 자동 변환, 업로드 시 이전 이름도 인식, 답변을 저장하면 “협업진행”으로 변경)',
+    'RM 현황 선택 방식 변경: 상세·수정 화면의 현황 선택을 목록(드롭다운)에서 버튼 선택으로 변경 (접수 / 진행 / 협업진행 / 완료)'
+  ]},
+  { v:'2.71', date:'2026-11-02', items:[
+    'RM 공유: 접수일자를 옵션으로 변경 – 기본은 미선택이며, 미선택 상태에서도 공유 텍스트 복사·공유·저장이 가능 (배정일자 줄은 자동 생략, “지우기” 버튼으로 선택 해제)',
+    'RM문의 목록·상세·내보내기: 접수일자가 없는 티켓은 “-”로 표시'
+  ]},
+  { v:'2.7', date:'2026-11-02', items:[
+    'VM 공유 텍스트 템플릿 형식 변경: 작성자·일자를 내용 아래 맨 하단(footer)으로 이동 (기존 기본 템플릿은 자동 갱신, 직접 수정한 템플릿은 유지)',
+    'RM문의: 등록 버튼 “새 문의” → “문의 등록”',
+    'OH 페이지 개편: VM과 같은 형식의 “공유 / Task” 탭 구성 (기존 수치 통계 요약은 제거)',
+    'OH 공유 탭: 머리말(서신발송) / 일자 / 발송대상 / 발송문구(제목·본문내용·첨부파일) 입력, 공유 텍스트 실시간 생성, 공유 시 자동 저장, 저장 → Task',
+    'OH Task 탭: 머리말(서신발송 / 인터뷰어 / 인터뷰이) 구분, 일자·발송대상(인터뷰는 대상자)·제목·본문내용·파일 첨부 입력, 목록 정렬·구분·머리말 필터, 내보내기, 설정에서 OH 공유 템플릿 수정',
+    '첨부파일은 파일당 1MB까지 앱에 저장되어 다시 내려받을 수 있고, 1MB를 넘는 파일은 파일명만 기록됨'
+  ]},
+  { v:'2.6', date:'2026-11-02', items:[
+    '설정: 설정 화면 좌측 상단에 “← 일반 페이지로” 버튼 추가 (접근 코드 없이 계정으로만 로그인한 경우에는 “← 접근 코드 입력으로”로 표시되어 코드 입력 화면으로 이동)',
+    '설정: admin 계정으로 로그인하면 모든 페이지 메뉴(VM·RM·OH·HL)가 활성화되어 접근 코드 없이도 전체 페이지 이용 가능 (메뉴 설정에서 숨김 처리한 페이지 포함)'
+  ]},
+  { v:'2.55', date:'2026-11-01', items:[
+    'RM문의 목록 글자 크기 비율 조정: 제목을 가장 크게(16px) 강조하고, 티켓ID·일자·구분·담당자는 12.5px로 통일, 상태 배지·답변 표시·내용 미리보기는 11.5~12px로 축소하여 제목 중심의 위계로 정리'
+  ]},
+  { v:'2.54', date:'2026-11-01', items:[
+    'RM문의 목록: 티켓ID를 색상 강조 (굵은 브랜드 색상 + 연한 배경 칩)'
+  ]},
+  { v:'2.53', date:'2026-11-01', items:[
+    'VM 공유: 작성자를 내용 하단으로 이동 (일자는 단독 소형 입력, TF 선택은 계속 맨 하단)',
+    'VM Task: 작성자 표시 – Task 직접 작성/수정 화면에 작성자 선택 추가, Task 카드에는 작성자를 항상 표시 (없으면 “-”)'
+  ]},
+  { v:'2.52', date:'2026-11-01', items:[
+    'RM 공유: 공유 텍스트를 실시간 반영 – 티켓 ID·제목·내용·담당자·분류 중 하나라도 입력하면 즉시 텍스트가 만들어지고 이후 입력 내용이 바로 반영됨 (접수일자는 선택 전에는 배정일자 줄을 생략, 선택하면 줄이 추가됨)'
+  ]},
+  { v:'2.51', date:'2026-11-01', items:[
+    'VM Task 카드: 작성자를 내용 하단으로 이동'
+  ]},
+  { v:'2.5', date:'2026-11-01', items:[
+    'VM Task 목록 노출 방식 변경: 일자 / 구분(공유·Task) / 제목 / 작성자 (구분 열 클릭 정렬 지원)',
+    'VM: 공유 탭에서 넘어온 게시물은 현황(배정/진행/완료)을 표시하지 않음 – 목록, 카드 상세, 상태 탭 집계, 내보내기에서 제외. 현황은 Task에서 직접 만든 항목에만 적용 (목록에서는 제목 앞 작은 배지로 표시)',
+    'RM문의 목록 노출 방식 변경: 티켓ID / 일자 / 구분(분류) / 제목 / 담당자 (현황은 제목 앞 배지, 답변이 있으면 “답변” 표시)',
+    'RM문의 UI 개선: 긴 분류·담당자는 줄임 표시, 목록 줄 간격·배지 정리, 모바일에서도 같은 순서로 표시'
+  ]},
+  { v:'2.4', date:'2026-11-01', items:[
+    'VM 공유: 작성자를 선택 메뉴로 변경 – “+ 새 작성자 추가…”로 이름을 등록하고 선택 (기본값은 비어 있음, 선택은 필수)',
+    'VM 공유 UI: 작성자와 일자를 한 줄에 나란히 배치',
+    'VM Task: 내보내기 버튼을 목록 하단으로 이동',
+    'VM Task: 목록 정렬 추가 (열 제목 클릭 또는 정렬 선택: 일자/제목/작성자/카테고리/현황) 및 구분 필터(전체 / 공유 / Task) – 공유 탭에서 저장한 항목과 Task에서 직접 만든 항목을 구분해 표시',
+    'VM 공유: 내용 템플릿 기능 – 내용 입력란에서 템플릿을 불러오거나 현재 내용을 템플릿으로 저장, 설정 > 템플릿 수정에서 추가·수정·삭제'
+  ]},
+  { v:'2.3', date:'2026-11-01', items:[
+    'RM문의: 엑셀(.xlsx)·CSV 업로드 기능 추가 – 샘플 양식 파일 다운로드 제공 (열: 티켓No / 접수일자 / 분류 / 담당자 / 제목 / 내용 / 답변 / 처리 현황). 티켓No 중복·필수값(티켓No, 제목) 누락 행은 건너뛰고 결과를 안내',
+    'RM문의: 내보내기 버튼을 목록 하단으로 이동 (업로드·샘플 양식 버튼과 같은 줄)',
+    '텍스트 수정: “+ 새 티켓” → “+ 새 문의”',
+    'RM 공유: 접수일자를 선택하면 공유 텍스트 박스에 템플릿이 활성화됨 (선택 전에는 비어 있고, 공유·저장 시 접수일자 필요)',
+    'RM 공유: 분류 추가 등록 – 선택 메뉴에서 “+ 새 분류 추가…”로 바로 등록',
+    'RM 공유 UI: 담당자와 분류를 한 줄에 나란히 배치, 접수일자는 접기/펼치기 영역으로 이동 (“오늘” 버튼 포함)',
+    'RM 공유 텍스트: 현황이 “접수”이면 “현황: 접수” 줄을 자동 생략 (답변·완료 등 다른 현황은 표시)'
+  ]},
+  { v:'2.2', date:'2026-11-01', items:[
+    'RM 위치 변경: 접수일자를 작성 화면 맨 하단으로 이동 (티켓 ID → 제목 → 내용 → 담당자 → 분류 → 접수일자)',
+    'RM 공유/저장 후 입력창 초기화: 텍스트 복사·이미지 저장·공유 후 또는 “저장 → RM문의” 후 작성 화면이 빈 새 티켓으로 초기화 (저장은 이미 완료된 상태)',
+    'RM 텍스트 수정: 탭 이름 “티켓” → “RM문의”',
+    'RM문의 목록을 게시판 형식으로 변경: 티켓No / 담당자 / 상태 / 분류 / 제목 / 일자. 열 제목 클릭 또는 정렬 선택으로 오름/내림차순 정렬, 상태 탭으로 구분 표시',
+    'RM 분류 항목 추가: 작성·수정 화면에서 입력/선택(기존 분류 목록 제안), 목록·상세·내보내기·검색에 반영 ({분류} 템플릿 항목 추가)',
+    'RM 티켓 ID: 숫자만 입력하면 앞에 #을 자동으로 붙임 (예: 123 → #123)'
+  ]},
+  { v:'2.1', date:'2026-11-01', items:[
+    'RM 위치 변경: 담당자 입력을 작성 화면 맨 하단(내용 아래)으로 이동',
+    'RM 기능: 담당자 선택 메뉴 구성 – 등록된 담당자 목록에서 선택하고, “+ 새 담당자 추가…”로 바로 등록 (본인으로 기본 선택, 선택 안 함 가능)'
+  ]},
+  { v:'2.0', date:'2026-11-01', items:[
+    'RM 텍스트 수정: 공유 화면의 “입력일자 … (자동)” 문구 삭제 (입력일자는 내부에서 자동 기록)',
+    'RM 기능 추가: 담당자 입력 – 본인 이름을 입력하며, 한 번 등록하면 기억되어 새 티켓에 자동으로 채워짐',
+    'RM 공유 텍스트: 첫 줄을 “[RM] 티켓ID”로 변경하고 “접수일자”를 “배정일자”로 수정, 담당자·제목·현황 순으로 재배열 ({배정일자} 항목 추가)',
+    '기존 기본 RM 템플릿은 새 기본값으로 자동 갱신 (직접 수정한 템플릿은 유지)'
+  ]},
+  { v:'1.9', date:'2026-11-01', items:[
+    'VM 기능 추가: 작성자(필수) 입력 – 본인 이름을 한 번 등록하면 이 브라우저에 기억되어 새 글에 자동으로 채워짐. 공유 텍스트({작성자}), Task 목록·카드, 내보내기, R&R 이미지에 반영',
+    'VM 공유: 텍스트 공유가 기본, 이미지는 “이미지 포함(옵션)” 체크 시에만 이미지 저장·이미지 첨부 공유 제공',
+    'VM 공유: 텍스트 복사 / 이미지 저장 / 공유를 누르면 Task에 자동 저장(작성자·제목 필수)',
+    'VM UI: 저장 버튼을 공유 버튼 줄의 우측에 분리 배치 (일자 소형·TF 최하단 유지)',
+    'RM 페이지: 공유 화면이 첫 페이지 (공유 | 티켓 소분류). 티켓 ID는 직접 입력(필수·중복 불가), 제목, 내용 입력',
+    'RM: 입력일자는 자동 생성, 접수일자는 별도 선택 (소형 일자 입력). 입력하면 자동 저장되고, 공유 후 “저장 → 티켓”으로 목록 이동',
+    'RM: 저장된 티켓 상세에서 답변 입력/저장/삭제 (답변 저장 시 현황이 “답변”으로 변경). 공유 텍스트에 {답변} 포함',
+    '템플릿: {작성자}, {티켓ID}, {접수일자}, {입력일자}, {답변} 항목 추가 (기존 기본 템플릿은 자동으로 새 기본값으로 갱신, 직접 수정한 템플릿은 유지)',
+    '내보내기: VM에 작성자 열, RM에 티켓ID·접수일자·입력일자·답변 열 추가'
+  ]},
+  { v:'1.8', date:'2026-11-01', items:[
+    '텍스트 수정: 공유 작성 화면의 “새 구성안” 제목 삭제',
+    '머리말 순서 변경: 보고 / 제안 / 기획 (Task 카테고리·템플릿 설정 순서도 동일, 새 작성 시 기본 머리말은 “보고”)',
+    'UI: 일자 입력을 작은 크기로 축소, 카테고리(TF) 선택은 작성 화면 맨 하단으로 이동',
+    '기능: 카테고리(TF) 선택을 옵션으로 변경 – 선택 입력이며, 설정 > 템플릿 수정에서 표시 여부를 끌 수 있음. TF가 비어 있으면 공유 텍스트에서 TF 줄을 자동 생략'
+  ]},
+  { v:'1.7', date:'2026-11-01', items:[
+    'VM 소카테고리를 “공유 / Task / R&R” 3개로 구성 – R&R을 머리말에서 분리해 독립 탭으로 이동',
+    'R&R 탭: Work flow + 업무/담당자/Follow-up 입력, 아래에 공유 텍스트·이미지 공유, 저장하면 Task로 이동',
+    '공유·R&R 탭은 각각 작성 중인 내용을 따로 보관 (탭을 옮겨도 유지)',
+    '버전 관리 지침 변경: [업데이트]는 0.1 단위로 올리고 0.01 자리는 버림'
+  ]},
+  { v:'1.61', date:'2026-11-01', items:[
+    'VM 소카테고리 “구성안” → “공유”로 변경',
+    '공유: “새 구성안” 입력 화면을 메인으로 이동, 바로 아래에 공유 템플릿(완성 텍스트)을 연결해 입력과 동시에 자동 완성 → 복사·이미지·공유를 바로 실행',
+    '공유에서 저장하면 Task 페이지로 이동해 Task로 등록(현황 배정) – 이전에 저장한 구성안은 자동으로 Task로 옮겨짐',
+    'Task 카드에 저장된 내용·공유 텍스트 표시, 수정 시 공유 화면으로 이동 / Work flow 단계는 “업무 단계” 버튼으로 편집',
+    '기획/제안/보고 내용의 가이드 라인(기본 틀) 삭제 – 설정의 “내용 기본 틀” 항목도 삭제',
+    'Task 카테고리에 R&R 추가'
+  ]},
+  { v:'1.51', date:'2026-11-01', items:[
+    'VM 구성안에 “R&R” 템플릿 추가 – Work flow(전체 업무 흐름 구성도) + 업무 / 담당자 / Follow-up 표 입력',
+    '담당자 이름을 색상으로 구분해 한눈에 보이도록 표시 (화면·이미지 공통, 여러 명은 쉼표로 입력)',
+    '입력한 R&R을 Work flow와 함께 디자인된 이미지로 저장·공유',
+    '템플릿 수정: R&R 공유 텍스트 틀 및 {워크플로우} {R&R표} 항목 추가'
+  ]},
+  { v:'1.41', date:'2026-11-01', items:[
+    '상단 권한 표시에서 “권한” 문구 삭제 (예: “RM 권한” → “RM”)',
+    'VM 페이지: 기획/제안/보고 구성안 작성 추가 – 머리말 선택, 제목·내용·카테고리(TF) 입력, 완성된 공유 텍스트 수정 후 공유, 내용 저장. 기존 Task는 “Task” 탭으로 유지',
+    '설정: 템플릿 수정 추가 – 머리말별 내용 기본 틀·공유 텍스트 틀, RM·HL 공유 텍스트 틀, TF 목록',
+    '매니저 계정 권한 항목에 “템플릿 수정” 추가'
+  ]},
+  { v:'1.31', date:'2026-11-01', items:[
+    '접근 코드 입력 화면의 “발급받은 접근 코드를 입력하세요” 문구 삭제'
+  ]},
+  { v:'1.3', date:'2026-11-01', items:[
+    '설정 진입 위치 변경: 접근 코드 화면의 “설정 페이지 계정 로그인” 링크 삭제 → 화면 상단 톱니바퀴(⚙) 버튼으로 이동 (메뉴의 ⚙ 설정 항목도 상단 버튼으로 통합)',
+    '텍스트 수정: 페이지 제목 “Task Manager” → “VM Task Manager”, 코드 입력창 제목 “접근 코드” → “VM Task Manager”',
+    '코드 입력창의 가이드 예시(placeholder) 삭제'
+  ]},
+  { v:'1.2', date:'2026-11-01', items:[
+    '페이지 구성: VM(보고·기획·제안) / RM(티켓) / OH(통계 – 다음 업데이트) / HL-오장책(유형·제목·내용 – 다음 버전 상세 설계)',
+    'VM: Task에 카테고리(보고·기획·제안) 추가, 카테고리별 필터',
+    'RM: 티켓번호·제목·내용·담당자·처리 현황(접수/배정/답변/완료) 관리',
+    '접근 방식 변경: 접근 코드(패턴 문자+숫자 4자리)로 페이지 접근을 구분 – rm=VM+RM / oh=VM+RM+OH / hl=VM+RM+OH+HL / admin=전체+설정. 초기 코드는 패턴문자+1234',
+    '계정 로그인은 설정 페이지에만 적용',
+    '설정: 페이지 메뉴 등록(표시·이름·순서), 페이지별 출력 유형 선택, 공유 형식(공통) 선택, 접근 권한·패턴 코드 설정',
+    '접근 권한 설정 페이지는 소스 보기에서 암호화 처리',
+    '내보내기: CSV / XLSX / Word(docx) / PDF(인쇄 창에서 PDF로 저장)',
+    '매니저 계정 권한 항목을 설정 페이지 기준(담당자·메뉴·공유 형식·접근 권한·데이터)으로 변경'
+  ]},
+  { v:'1.1', date:'2026-11-01', items:[
+    '전체/배정/진행/완료 현황 탭 상단 고정, 일자 크기 축소 및 요일 표시',
+    '관리자/매니저 계정, 첫 로그인 비밀번호 강제 변경, 계정별 권한 설정',
+    '릴리즈 노트 관리자 전용, 데이터 내보내기/불러오기'
+  ]},
+  { v:'1.0', date:'2026-11-01', items:[
+    'Task Manager 최초 버전 – Task 목록, Work flow 및 단계별 담당자, 카드 공유'
+  ]}
+];
+const STATUS = ['배정','진행','완료'];
+const CATS = ['보고','제안','기획','R&R'];
+const KEY = 'taskmgr_data_v1';
+const INIT_PW = '1234';
+const WD = ['일','월','화','수','목','금','토'];
+const OUTL = { csv:'CSV', xlsx:'XLSX', docx:'Word', pdf:'PDF' };
+const ALL_OUT = ['csv','xlsx','docx','pdf'];
+const PAGE_DEF = {
+  vm:{ label:'VM', desc:'보고·기획·제안', exp:true },
+  rm:{ label:'RM', desc:'티켓 관리', exp:true },
+  oh:{ label:'OH', desc:'서신발송·인터뷰', exp:true },
+  hl:{ label:'HL-오장책', desc:'유형·제목·내용', exp:true }
+};
+const PERM_LABELS = { people:'담당자 관리', menu:'페이지 메뉴·출력 유형', format:'공유 형식', tpl:'템플릿 수정', codes:'접근 권한·패턴 코드', data:'데이터 내보내기/불러오기' };
+const DEFAULT_PERMS = { people:true, menu:false, format:false, tpl:false, codes:false, data:false };
+
+const HEADS = ['보고','제안','기획','R&R'];
+const OLD_SHARE = '[{머리말}] {제목}\nTF: {TF}\n일자: {일자}\n\n{내용}';
+const OLD_RR_SHARE = '[{머리말}] {제목}\nTF: {TF}\n일자: {일자}\n\n[Work flow]\n{워크플로우}\n\n[R&R]\n{R&R표}\n\n{내용}';
+const OLD_RM = '[{페이지}] {제목}\n티켓번호: {티켓번호}\n일자: {일자}\n담당자: {담당자}\n현황: {현황}\n\n{내용}';
+const OLD_RM2 = '[{페이지}] {제목}\n티켓ID: {티켓ID}\n접수일자: {접수일자}\n입력일자: {입력일자}\n현황: {현황}\n\n{내용}\n\n[답변]\n{답변}';
+const OLD3_SHARE = '[{머리말}] {제목}\n작성자: {작성자}\nTF: {TF}\n일자: {일자}\n\n{내용}';
+const OLD3_RR_SHARE = '[{머리말}] {제목}\n작성자: {작성자}\nTF: {TF}\n일자: {일자}\n\n[Work flow]\n{워크플로우}\n\n[R&R]\n{R&R표}\n\n{내용}';
+const DEF_SHARE = '[{머리말}] {제목}\nTF: {TF}\n\n{내용}\n\n작성자: {작성자}\n일자: {일자}';
+const DEF_RR_SHARE = '[{머리말}] {제목}\nTF: {TF}\n\n[Work flow]\n{워크플로우}\n\n[R&R]\n{R&R표}\n\n{내용}\n\n작성자: {작성자}\n일자: {일자}';
+const DEF_TPL = () => ({
+  docShare:{ '기획':DEF_SHARE, '제안':DEF_SHARE, '보고':DEF_SHARE, 'R&R':DEF_RR_SHARE },
+  rm:'[{페이지}] {티켓ID}\n배정일자: {배정일자}\n담당자: {담당자}\n제목: {제목}\n현황: {현황}\n\n{내용}\n\n[답변]\n{답변}',
+  hl:'[{페이지}] {제목}\n유형: {유형}\n일자: {일자}\n\n{내용}',
+  oh:'[{머리말}] {제목}\n발송대상: {발송대상}\n\n{본문내용}\n\n첨부파일: {첨부파일}\n일자: {일자}'
+});
+const PH = {
+  vm:'{머리말} {제목} {작성자} {TF} {일자} {내용} {페이지} {워크플로우} {R&R표}',
+  rm:'{티켓ID} {TaskNo} {제목} {내용} {분류} {배정일자} {접수일자} {입력일자} {답변} {담당자} {현황} {페이지}',
+  hl:'{유형} {제목} {내용} {일자} {페이지}',
+  oh:'{머리말} {제목} {발송대상} {본문내용} {첨부파일} {일자} {페이지}'
+};
+function fillTpl(t,v){ return String(t||'').replace(/\{([^{}]+)\}/g,(m,k)=>{ if(!(k in v)) return m; const x=v[k]; return (k==='내용'||k==='본문내용') ? (x||'') : (x||'-'); }); }
+const dispLabel = l => (String(l||'').replace(/\s*권한\s*$/,'').trim() || String(l||''));
+const REC = {
+  rm:{ arr:'tickets', statuses:['접수','진행','협업진행','완료'], cols:'96px 96px 90px 1fr 90px',
+       heads:['Task No','일자','구분','제목','담당자'], skeys:['no','title','content','owner','status','reply','cat'] },
+  hl:{ arr:'hl', statuses:null, cols:'110px 1fr 84px', heads:['유형','제목','일자'], skeys:['type','title','content'] }
+};
+
+const $ = id => document.getElementById(id);
+const uid = () => Math.random().toString(36).slice(2,10);
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const normNo = v => { v=String(v||'').trim(); return /^\d+$/.test(v) ? '#'+v : v; };
+const catNames = () => [...new Set([...S.rmCats,...S.tickets.map(t=>t.cat)].filter(Boolean))];
+function ymd(ms){ const d=new Date(ms); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtDT(ms){ if(!ms) return '변경 이력 없음'; const d=new Date(ms), p=n=>String(n).padStart(2,'0'); return d.getFullYear()+'.'+p(d.getMonth()+1)+'.'+p(d.getDate())+' ('+WD[d.getDay()]+') '+p(d.getHours())+':'+p(d.getMinutes()); }
+function stamp(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return String(d.getFullYear()).slice(2)+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes()); }
+function owners(t){ return [...new Set(t.steps.map(s=>s.owner).filter(Boolean))]; }
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('on'),2200); }
+
+/* ---------- date ---------- */
+function parseD(s){ const [y,m,d]=String(s).split('-').map(Number); return new Date(y,(m||1)-1,d||1); }
+function wdOf(s){ return WD[parseD(s).getDay()]; }
+function wdCls(s){ const g=parseD(s).getDay(); return g===0?'sun':g===6?'sat':''; }
+function fmtShort(s){ return s.slice(2).replace(/-/g,'.'); }
+function fmtText(s){ return s ? s+' ('+wdOf(s)+')' : ''; }
+function fmtHtml(s,full){ if(!s) return '<span class="dt">-</span>'; return `<span class="dt">${esc(full?s.replace(/-/g,'.'):fmtShort(s))}<em class="${wdCls(s)}">(${wdOf(s)})</em></span>`; }
+
+/* ---------- 접근 모듈 (암호화 영역) 복호화 ---------- */
+const _BLOB='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';
+const _KEY='tm-access-v1';
+function _ks(key){ let h=2166136261>>>0; for(let i=0;i<key.length;i++){ h^=key.charCodeAt(i); h=Math.imul(h,16777619)>>>0; }
+  return function(){ h=(h+0x6D2B79F5)>>>0; let t=h; t=Math.imul(t^(t>>>15),t|1); t^=t+Math.imul(t^(t>>>7),t|61); return ((t^(t>>>14))>>>0)&255; }; }
+function _dec(b64,key){ const bin=atob(b64), n=new Uint8Array(bin.length), r=_ks(key); for(let i=0;i<bin.length;i++) n[i]=bin.charCodeAt(i)^r(); return new TextDecoder().decode(n); }
+let S = null, ACCESS = null;
+const ENV = { S:()=>S, save:()=>save(), toast:m=>toast(m), esc };
+try{ ACCESS = new Function('env', _dec(_BLOB,_KEY))(ENV); }catch(e){ console.error('access module', e); }
+
+/* ---------- state ---------- */
+function defaultUsers(){
+  return [
+    { id:'admin',   role:'admin',   pwh:null, must:true, perms:{} },
+    { id:'manager', role:'manager', pwh:null, must:true, perms:{...DEFAULT_PERMS} }
+  ];
+}
+function normalize(d){
+  d = d && typeof d==='object' ? d : {};
+  ['tasks','tickets','hl','people'].forEach(k=>{ if(!Array.isArray(d[k])) d[k]=[]; });
+  if(Array.isArray(d.docs)) d.docs.forEach(x=>{ if(x&&x.id&&!d.tasks.some(t=>t.id===x.id)){ const doc={ head:x.head, tf:x.tf||'', content:x.content||'', flow:x.flow||[], rr:x.rr||[] }; if(typeof x.final==='string') doc.final=x.final;
+      d.tasks.push({ id:x.id, date:x.date, cat:x.head, title:x.title, status:'배정', steps:[], created:x.created||Date.now(), doc }); } });
+  delete d.docs;
+  d.tasks.forEach(t=>{ if(!t.cat) t.cat='보고'; if(!Array.isArray(t.steps)) t.steps=[]; });
+  d.lastChanged = typeof d.lastChanged==='number' ? d.lastChanged : null;
+  if(!Array.isArray(d.rmCats)) d.rmCats=[];
+  if(!Array.isArray(d.oh)) d.oh=[];
+  d.oh.forEach(x=>{ if(!Array.isArray(x.attach)) x.attach=[]; if(!x.src) x.src='Task'; if(!x.created) x.created=Date.now(); });
+  if(!Array.isArray(d.bodyTpls)) d.bodyTpls=[];
+  d.authors=[...new Set([...(Array.isArray(d.authors)?d.authors:[]),...d.tasks.map(t=>t.author)].filter(Boolean))];
+  d.tickets.forEach(t=>{ if(t.status==='배정') t.status='진행'; else if(t.status==='답변') t.status='협업진행'; if(typeof t.cat!=='string') t.cat=''; if(!t.inDate) t.inDate = t.created ? ymd(t.created) : t.date; if(typeof t.reply!=='string') t.reply=''; });
+  if(!Array.isArray(d.users)||!d.users.length) d.users=defaultUsers();
+  if(!d.users.some(u=>u.role==='admin')) d.users.unshift(defaultUsers()[0]);
+  d.users.forEach(u=>{ if(u.role==='manager'){ const o=u.perms||{}; u.perms={}; Object.keys(PERM_LABELS).forEach(k=>u.perms[k]= o[k]!==undefined && k in o ? !!o[k] : DEFAULT_PERMS[k]); } });
+  d.fmt = Object.assign({text:true,image:true,share:true}, d.fmt||{});
+  d.opts = Object.assign({tf:true}, d.opts||{});
+  if(!Array.isArray(d.tfs)) d.tfs=[];
+  { const dt=DEF_TPL(), t=d.tpl||{};
+    d.tpl={ docShare:Object.assign(dt.docShare,t.docShare||{}),
+            rm:typeof t.rm==='string'?t.rm:dt.rm, hl:typeof t.hl==='string'?t.hl:dt.hl, oh:typeof t.oh==='string'?t.oh:dt.oh };
+    Object.keys(d.tpl.docShare).forEach(h=>{ const v=d.tpl.docShare[h]; if(v===OLD_SHARE||v===OLD_RR_SHARE||v===OLD3_SHARE||v===OLD3_RR_SHARE) d.tpl.docShare[h]=DEF_TPL().docShare[h]; });
+    if(d.tpl.rm===OLD_RM||d.tpl.rm===OLD_RM2) d.tpl.rm=DEF_TPL().rm; }
+  const out=[];
+  (Array.isArray(d.pages)?d.pages:[]).forEach(p=>{ if(PAGE_DEF[p.id] && !out.some(o=>o.id===p.id)) out.push({id:p.id,label:p.label||PAGE_DEF[p.id].label,on:p.on!==false,out:Array.isArray(p.out)?p.out.filter(x=>ALL_OUT.includes(x)):ALL_OUT.slice()}); });
+  Object.keys(PAGE_DEF).forEach(id=>{ if(!out.some(o=>o.id===id)) out.push({id,label:PAGE_DEF[id].label,on:true,out:ALL_OUT.slice()}); });
+  d.pages=out;
+  if(ACCESS) ACCESS.ensure(d);
+  return d;
+}
+function load(){ try{ return JSON.parse(localStorage.getItem(KEY)); }catch(e){ return null; } }
+function save(keep){ if(keep!==true) S.lastChanged=Date.now(); try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast('저장 공간 오류: 내보내기로 백업해 주세요'); } if(keep!==true && typeof gasPush==='function') gasPush(); }
+S = normalize(load());
+const pageOf = id => S.pages.find(p=>p.id===id);
+const pageLabel = id => (pageOf(id)||{}).label || PAGE_DEF[id].label;
+
+/* ---------- session / auth ---------- */
+let SES = null;   // {pages:[], settings:null|'admin'|'manager', acct:null|user, label, code}
+let PG = null;
+let RMTAB='share', rmEdit=null, rmManual=false, rmTimer=null;
+function cyrb53(str,seed=0){let h1=0xdeadbeef^seed,h2=0x41c6ce57^seed;for(let i=0,ch;i<str.length;i++){ch=str.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677);}h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);return (4294967296*(2097151&h2)+(h1>>>0)).toString(16);}
+async function hashPw(id,pw){
+  const s='tm1|'+id.toLowerCase()+'|'+pw;
+  try{ if(window.crypto && crypto.subtle){ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); } }catch(e){}
+  return 'c'+cyrb53(s);
+}
+async function checkPw(u,pw){ return u.pwh==null ? pw===INIT_PW : (await hashPw(u.id,pw))===u.pwh; }
+const isAdmin = () => !!SES && SES.settings==='admin';
+function sp(k){ if(!SES||!SES.settings) return false; if(SES.settings==='admin') return true; return !!(SES.acct && SES.acct.perms && SES.acct.perms[k]); }
+function allowedPages(){ if(!SES) return []; if(SES.settings==='admin') return S.pages.slice(); return S.pages.filter(p=>p.on && SES.pages.includes(p.id)); }
+
+function applyAuthUI(){
+  const on=!!SES;
+  ['meBox','outBtn','menu'].forEach(id=>$(id).classList.toggle('hide',!on));
+  $('pwBtn').classList.toggle('hide', !(on && SES.acct));
+  if(on){
+    let t=dispLabel(SES.label||''); if(SES.acct) t+=(t?' · ':'')+SES.acct.id;
+    $('meName').textContent=t||'로그인';
+  }
+}
+function applyAcct(u){
+  SES.acct=u;
+  SES.settings = (u.role==='admin' || SES.settings==='admin') ? 'admin' : 'manager';
+}
+function enterWithCode(raw){
+  const r = ACCESS && ACCESS.resolve(S,raw);
+  if(!r) return false;
+  SES={ pages:r.pages, settings:r.settings?'admin':null, acct:null, label:r.label, code:r.code };
+  try{ sessionStorage.setItem('tm_code',r.code); }catch(e){}
+  return true;
+}
+function startApp(){
+  applyAuthUI();
+  const f=allowedPages()[0];
+  navigate(f ? f.id : (SES.settings ? 'set' : null));
+  if(!f && !SES.settings){ toast('접근 가능한 페이지가 없습니다'); logout(); }
+}
+function logout(){
+  SES=null; PG=null; docEdit=null; draftStore={share:null,rr:null}; try{ sessionStorage.removeItem('tm_code'); sessionStorage.removeItem('tm_acct'); }catch(e){}
+  $('gCode').value=''; $('lId').value=''; $('lPw').value=''; $('gErr').textContent=''; $('lErr').textContent='';
+  $('pwOv').classList.remove('on'); applyAuthUI(); renderTabs(); show('gate');
+}
+function doGate(){
+  const v=$('gCode').value;
+  if(!enterWithCode(v)){ $('gErr').textContent='접근 코드가 올바르지 않습니다.'; return; }
+  $('gErr').textContent=''; $('gCode').value=''; startApp();
+}
+async function doLogin(){
+  const id=$('lId').value.trim(), pw=$('lPw').value;
+  const u=S.users.find(x=>x.id.toLowerCase()===id.toLowerCase());
+  if(!u || !(await checkPw(u,pw))){ $('lErr').textContent='아이디 또는 비밀번호가 올바르지 않습니다.'; return; }
+  $('lErr').textContent=''; $('lPw').value='';
+  if(!SES) SES={ pages:[], settings:null, acct:null, label:'', code:'' };
+  applyAcct(u); try{ sessionStorage.setItem('tm_acct',u.id); }catch(e){}
+  applyAuthUI(); navigate('set');
+  if(u.must) openPw(true);
+}
+let pwForced=false;
+function openPw(forced){
+  pwForced=!!forced;
+  $('pwTitle').textContent = forced ? '비밀번호를 변경해 주세요' : '비밀번호 변경';
+  $('pwHint').textContent = forced ? '초기(또는 초기화된) 비밀번호입니다. 계속하려면 새 비밀번호를 설정해야 합니다.' : '';
+  $('pwCurWrap').classList.toggle('hide', pwForced);
+  $('pwCancel').classList.toggle('hide', pwForced);
+  ['pwCur','pwNew','pwNew2'].forEach(i=>$(i).value=''); $('pwErr').textContent='';
+  $('pwOv').classList.add('on'); setTimeout(()=>$(pwForced?'pwNew':'pwCur').focus(),50);
+}
+async function savePw(){
+  const u=SES&&SES.acct; if(!u) return;
+  const cur=$('pwCur').value, n1=$('pwNew').value, n2=$('pwNew2').value, er=$('pwErr');
+  if(!pwForced && !(await checkPw(u,cur))){ er.textContent='현재 비밀번호가 올바르지 않습니다.'; return; }
+  if(n1.length<4){ er.textContent='새 비밀번호는 4자 이상이어야 합니다.'; return; }
+  if(n1===INIT_PW){ er.textContent='초기 비밀번호(1234)는 사용할 수 없습니다.'; return; }
+  if(n1!==n2){ er.textContent='새 비밀번호 확인이 일치하지 않습니다.'; return; }
+  u.pwh = await hashPw(u.id,n1); u.must=false; save();
+  $('pwOv').classList.remove('on'); toast('비밀번호가 변경되었습니다');
+}
+
+/* ---------- router ---------- */
+let cur=null, curRec=null, editId=null, draft=null, recEdit=null;
+const FS = { vm:'전체', rm:'전체' };
+let CATF = '전체';
+function show(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  $('v-'+name).classList.add('on'); window.scrollTo(0,0);
+}
+function navigate(p){
+  if(p==='set'){
+    PG='set'; renderNav(); renderTabs();
+    if(!SES||!SES.settings){ show('slogin'); return; }
+    renderSettings(); show('set'); return;
+  }
+  if(!SES) { show('gate'); return; }
+  if(!p) return;
+  if(!allowedPages().some(x=>x.id===p)){ toast('접근 권한이 없습니다'); return; }
+  PG=p; renderNav(); renderTabs();
+  if(p==='vm'){ if(VMTAB==='share'||VMTAB==='rr'){ renderShare(); show('share'); } else { renderList(); show('list'); } }
+  else if(p==='rm'){ if(RMTAB==='share'){ renderRmShare(); show('rmshare'); } else if(RMTAB==='report'){ renderRmReport(); show('rmrep'); } else { renderRec(); show('rec'); } }
+  else if(p==='hl'){ renderRec(); show('rec'); }
+  else if(p==='oh'){ renderOh(); show('oh'); }
+}
+function renderNav(){
+  $('menu').innerHTML = allowedPages().map(p=>`<button class="mbtn ${PG===p.id?'on':''}" data-p="${p.id}">${esc(p.label)}</button>`).join('')
+;
+  $('gearBtn').classList.toggle('primary',PG==='set');
+}
+function tabsFor(p){ return p==='vm'?['전체',...STATUS] : p==='rm'?['전체',...REC.rm.statuses] : null; }
+function renderTabs(){
+  const t=$('tabs'); let list=SES?tabsFor(PG):null; if(PG==='vm'&&(VMTAB==='share'||VMTAB==='rr')) list=null; if(PG==='rm'&&RMTAB!=='list') list=null;
+  t.classList.toggle('hide',!list);
+  if(!list) return;
+  const arr = PG==='vm' ? S.tasks : S.tickets;
+  t.className='tabs '+PG; t.style.gridTemplateColumns=`repeat(${list.length},1fr)`;
+  t.innerHTML = list.map(s=>`<button class="tab ${FS[PG]===s?'on':''}" data-f="${s}"><b>${s==='전체'?arr.length:arr.filter(x=>x.status===s&&!(PG==='vm'&&x.doc)).length}</b>${s}</button>`).join('');
+}
+
+/* ---------- export (csv / xlsx / docx / pdf) ---------- */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(u8){ let c=0xFFFFFFFF; for(let i=0;i<u8.length;i++) c=CRCT[(c^u8[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function zipStore(files){
+  const enc=new TextEncoder(), chunks=[], cds=[]; let off=0;
+  const dt=new Date(), time=(dt.getHours()<<11)|(dt.getMinutes()<<5)|(dt.getSeconds()>>1), date=((dt.getFullYear()-1980)<<9)|((dt.getMonth()+1)<<5)|dt.getDate();
+  files.forEach(f=>{
+    const name=enc.encode(f.name), data=enc.encode(f.data), crc=crc32(data);
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0x0800,true); lh.setUint16(8,0,true);
+    lh.setUint16(10,time,true); lh.setUint16(12,date,true); lh.setUint32(14,crc,true); lh.setUint32(18,data.length,true); lh.setUint32(22,data.length,true); lh.setUint16(26,name.length,true); lh.setUint16(28,0,true);
+    chunks.push(new Uint8Array(lh.buffer),name,data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true); ch.setUint16(8,0x0800,true); ch.setUint16(10,0,true);
+    ch.setUint16(12,time,true); ch.setUint16(14,date,true); ch.setUint32(16,crc,true); ch.setUint32(20,data.length,true); ch.setUint32(24,data.length,true);
+    ch.setUint16(28,name.length,true); ch.setUint32(42,off,true);
+    cds.push(new Uint8Array(ch.buffer),name);
+    off+=30+name.length+data.length;
+  });
+  const cdSize=cds.reduce((a,b)=>a+b.length,0);
+  const e=new DataView(new ArrayBuffer(22)); e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,cdSize,true); e.setUint32(16,off,true);
+  return [...chunks,...cds,new Uint8Array(e.buffer)];
+}
+const xe = s => String(s??'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function colName(i){ let s='';i++; while(i>0){ const m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26);} return s; }
+function buildXlsx(title,h,rows){
+  const sheet = String(title).replace(/[\\/?*\[\]:]/g,'').slice(0,31)||'Sheet1';
+  const cell=(v,c,r,st)=>`<c r="${colName(c)}${r}" t="inlineStr" s="${st}"><is><t xml:space="preserve">${xe(v)}</t></is></c>`;
+  const widths = h.map((x,c)=>Math.min(60,Math.max(10,...[x,...rows.map(r=>r[c])].map(v=>Math.max(...String(v??'').split('\n').map(l=>[...l].reduce((a,ch)=>a+(ch.charCodeAt(0)>255?2:1),0)))))+2));
+  const sd = `<row r="1">${h.map((x,c)=>cell(x,c,1,1)).join('')}</row>` + rows.map((r,i)=>`<row r="${i+2}">${r.map((v,c)=>cell(v,c,i+2,0)).join('')}</row>`).join('');
+  const NS='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  return zipStore([
+    {name:'[Content_Types].xml',data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'},
+    {name:'_rels/.rels',data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+    {name:'xl/workbook.xml',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="${NS}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${xe(sheet)}" sheetId="1" r:id="rId1"/></sheets></workbook>`},
+    {name:'xl/_rels/workbook.xml.rels',data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'},
+    {name:'xl/styles.xml',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="${NS}"><fonts count="2"><font><sz val="11"/><name val="Malgun Gothic"/></font><font><b/><sz val="11"/><name val="Malgun Gothic"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs></styleSheet>`},
+    {name:'xl/worksheets/sheet1.xml',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="${NS}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${sd}</sheetData></worksheet>`}
+  ]);
+}
+function buildDocx(title,h,rows){
+  const run=(t,o={})=>{ const lines=String(t??'').split('\n'); return lines.map((l,i)=>`<w:r><w:rPr><w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:eastAsia="Malgun Gothic"/>${o.b?'<w:b/>':''}<w:sz w:val="${o.sz||20}"/></w:rPr>${i?'<w:br/>':''}<w:t xml:space="preserve">${xe(l)}</w:t></w:r>`).join(''); };
+  const tc=(t,o)=>`<w:tc><w:tcPr>${o&&o.b?'<w:shd w:val="clear" w:color="auto" w:fill="EEF0F4"/>':''}</w:tcPr><w:p>${run(t,o)}</w:p></w:tc>`;
+  const bd=['top','left','bottom','right','insideH','insideV'].map(s=>`<w:${s} w:val="single" w:sz="4" w:space="0" w:color="999999"/>`).join('');
+  const tbl=`<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>${bd}</w:tblBorders><w:tblCellMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr>`
+    + `<w:tr>${h.map(x=>tc(x,{b:1})).join('')}</w:tr>` + rows.map(r=>`<w:tr>${r.map(v=>tc(v)).join('')}</w:tr>`).join('') + '</w:tbl>';
+  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p>${run(title,{b:1,sz:32})}</w:p><w:p>${run('출력일: '+fmtText(todayStr()),{sz:18})}</w:p>${tbl}<w:p/><w:sectPr><w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/><w:pgMar w:top="1000" w:right="1000" w:bottom="1000" w:left="1000" w:header="500" w:footer="500" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  return zipStore([
+    {name:'[Content_Types].xml',data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'},
+    {name:'_rels/.rels',data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'},
+    {name:'word/document.xml',data:doc}
+  ]);
+}
+function toCSV(h,r){ const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"'; return '﻿'+[h,...r].map(a=>a.map(q).join(',')).join('\r\n'); }
+function printPdf(title,h,r){
+  const f=document.createElement('iframe'); f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(f);
+  const d=f.contentWindow.document; d.open();
+  d.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(title)}</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif;font-size:11px;color:#111}h1{font-size:17px;margin:0 0 4px}p{margin:0 0 10px;color:#555}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 6px;vertical-align:top;white-space:pre-wrap;text-align:left;word-break:break-word}th{background:#eef0f4}tr{page-break-inside:avoid}</style></head><body><h1>${esc(title)}</h1><p>출력일: ${esc(fmtText(todayStr()))}</p><table><thead><tr>${h.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${r.map(row=>`<tr>${row.map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`);
+  d.close();
+  setTimeout(()=>{ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ toast('인쇄를 시작할 수 없습니다'); } setTimeout(()=>f.remove(),60000); },300);
+  toast('인쇄 창에서 “PDF로 저장”을 선택하세요');
+}
+function dataFor(pid){
+  if(pid==='vm') return { headers:['일자','카테고리','제목','작성자','현황','담당자','Work flow','TF','내용'],
+    rows: vmRows().map(t=>[fmtText(t.date),t.cat||'',t.title,t.author||'',t.doc?'':t.status,owners(t).join(', '),t.steps.map((s,i)=>`${i+1}. ${s.name} (${s.owner||'미지정'})${s.done?' ✔':''}`).join('\n'),t.doc?(t.doc.tf||''):'',t.doc?docContentText(docView(t)):'']) };
+  if(pid==='rm') return { headers:['Task No','접수일자','입력일자','분류','제목','내용','답변','담당자','처리 현황'],
+    rows: recRows('rm').map(x=>[x.no,fmtText(x.date),fmtText(x.inDate||x.date),x.cat||'',x.title,x.content||'',x.reply||'',x.owner||'',x.status]) };
+  if(pid==='oh') return { headers:['일자','머리말','구분','발송대상','제목','본문내용','첨부파일'],
+    rows: ohRows().map(x=>[fmtText(x.date),x.head,x.src,x.target||'',x.title,x.content||'',(x.attach||[]).map(a=>a.name).join(', ')]) };
+  if(pid==='hl') return { headers:['일자','유형','제목','내용'],
+    rows: recRows('hl').map(x=>[fmtText(x.date),x.type||'',x.title,x.content||'']) };
+  return {headers:[],rows:[]};
+}
+function renderExp(pid, el){
+  const pg=pageOf(pid), outs=(pg&&PAGE_DEF[pid].exp)?pg.out:[];
+  el.innerHTML = outs.length ? '<span class="explbl">내보내기</span>'+outs.map(o=>`<button class="btn sm" data-exp="${o}" data-pid="${pid}">${OUTL[o]}</button>`).join('') : '';
+}
+function doExport(pid,o){
+  const d=dataFor(pid), label=pageLabel(pid);
+  if(!d.rows.length){ toast('내보낼 데이터가 없습니다'); return; }
+  const base=label.replace(/[\\/:*?"<>|\s]+/g,'_')+(pid==='vm'?'_Task':'')+'_'+stamp();
+  if(o==='csv') download(new Blob([toCSV(d.headers,d.rows)],{type:'text/csv;charset=utf-8'}),base+'.csv');
+  else if(o==='xlsx') download(new Blob(buildXlsx(label,d.headers,d.rows),{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),base+'.xlsx');
+  else if(o==='docx') download(new Blob(buildDocx(label,d.headers,d.rows),{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}),base+'.docx');
+  else if(o==='pdf') printPdf(label,d.headers,d.rows);
+}
+function download(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+async function copyText(txt){
+  try{ await navigator.clipboard.writeText(txt); return true; }
+  catch(e){ const a=document.createElement('textarea'); a.value=txt; document.body.appendChild(a); a.select(); let ok=false; try{ok=document.execCommand('copy');}catch(_){} a.remove(); return ok; }
+}
+function canvasBlob(c){ return new Promise(r=>c.toBlob(r,'image/png')); }
+function getAuthor(){ try{ return localStorage.getItem('tm_author')||''; }catch(e){ return ''; } }
+function setAuthor(v){ try{ localStorage.setItem('tm_author',v); }catch(e){} }
+let IMGOPT=(()=>{ try{ return localStorage.getItem('tm_img')==='1'; }catch(e){ return false; } })();
+document.body.classList.toggle('img-on',IMGOPT);
+document.addEventListener('change',e=>{
+  const c=e.target; if(!c.classList||!c.classList.contains('imgcb')) return;
+  IMGOPT=c.checked; try{ localStorage.setItem('tm_img',IMGOPT?'1':'0'); }catch(_){}
+  document.body.classList.toggle('img-on',IMGOPT); document.querySelectorAll('.imgcb').forEach(x=>x.checked=IMGOPT);
+});
+function shareBarHtml(right){
+  const f=S.fmt; const b=[];
+  if(f.text) b.push('<button class="btn primary" id="shText">텍스트 복사</button>');
+  if(f.image) b.push('<button class="btn imgonly" id="shImg">이미지 저장</button>');
+  if(f.share) b.push('<button class="btn" id="shShare">공유</button>');
+  if(f.image) b.push(`<label class="imgopt"><input type="checkbox" class="imgcb" ${IMGOPT?'checked':''}> 이미지 포함 (옵션)</label>`);
+  return (b.length||right)?`<div class="sharebar">${b.join('')}${right?`<span class="push">${right}</span>`:''}</div>`:'';
+}
+async function doShare(kind, o){   // o:{text, canvas(), name, title, note}  → 성공 여부 반환
+  const n=o.note?' · '+o.note:'';
+  if(kind==='shText'){ const ok=await copyText(o.text); toast((ok?'텍스트를 복사했습니다':'복사에 실패했습니다')+n); return ok; }
+  else if(kind==='shImg'){ download(await canvasBlob(o.canvas()), o.name); toast('이미지를 저장했습니다'+n); return true; }
+  else if(kind==='shShare'){
+    try{
+      let files=null;
+      if(S.fmt.image && IMGOPT){ const blob=await canvasBlob(o.canvas()); const file=new File([blob],o.name,{type:'image/png'}); if(navigator.canShare && navigator.canShare({files:[file]})) files=[file]; }
+      if(navigator.share){ await navigator.share(files?{title:o.title,text:o.text,files}:{title:o.title,text:o.text}); if(o.note) toast(o.note); return true; }
+      const ok=await copyText(o.text); toast((ok?'공유 미지원 환경: 텍스트를 복사했습니다':'공유할 수 없습니다')+n); return ok;
+    }catch(err){ if(err && err.name!=='AbortError') toast('공유에 실패했습니다'); return false; }
+  }
+  return false;
+}
+
+/* ---------- canvas ---------- */
+const FONT='"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function wrap(ctx,text,max){
+  const out=[]; let line='';
+  for(const ch of String(text)){
+    if(ch==='\n'){out.push(line);line='';continue;}
+    const test=line+ch;
+    if(ctx.measureText(test).width>max && line){out.push(line);line=ch;} else line=test;
+  }
+  out.push(line); return out;
+}
+function drawCard(t){
+  const F=FONT, W=760, pad=32, inner=W-pad*2, scale=2;
+  const m=document.createElement('canvas').getContext('2d');
+  m.font=`700 28px ${F}`; const tl=wrap(m,t.title,inner);
+  m.font=`600 18px ${F}`;
+  const boxes=t.steps.map(s=>{ const ls=wrap(m,s.name||'(단계명 없음)',inner-130); return {s,ls,h:Math.max(60,ls.length*26+22)}; });
+  let H=pad+26+10+tl.length*38+8+24+20+22+16+ (boxes.length? boxes.reduce((a,b)=>a+b.h,0)+(boxes.length-1)*30 : 30) +pad+22;
+  const c=document.createElement('canvas'); c.width=W*scale; c.height=H*scale;
+  const x=c.getContext('2d'); x.scale(scale,scale);
+  x.fillStyle='#f4f6fa'; x.fillRect(0,0,W,H);
+  x.fillStyle='#fff'; rr(x,12,12,W-24,H-24,18); x.fill(); x.strokeStyle='#e2e6ee'; x.lineWidth=1; x.stroke();
+  let y=pad+10; x.textBaseline='alphabetic';
+  const si=STATUS.indexOf(t.status), sc=['#d9822b','#2f7de1','#2e9e6a'][si], sbg=['#fff1e0','#e3efff','#e0f5ec'][si];
+  x.font=`600 14px ${F}`; x.fillStyle='#6b7488'; x.fillText('📅 '+fmtText(t.date)+'   ['+(t.cat||'보고')+']', pad, y+14);
+  const bw=x.measureText(t.status).width+24; x.fillStyle=sbg; rr(x,W-pad-bw,y-6,bw,26,13); x.fill();
+  x.fillStyle=sc; x.fillText(t.status, W-pad-bw+12, y+13);
+  y+=26+10; x.font=`700 28px ${F}`; x.fillStyle='#1c2333';
+  tl.forEach(l=>{ y+=32; x.fillText(l,pad,y); y+=6; });
+  y+=8; x.font=`500 15px ${F}`; x.fillStyle='#6b7488';
+  const o=owners(t); x.fillText('담당자: '+(o.length?o.join(', '):'-'), pad, y+16); y+=24;
+  const done=t.steps.filter(s=>s.done).length, n=t.steps.length, pct=n?done/n:0;
+  y+=8; x.fillStyle='#e2e6ee'; rr(x,pad,y,inner,6,3); x.fill();
+  if(pct>0){ x.fillStyle='#2e9e6a'; rr(x,pad,y,Math.max(6,inner*pct),6,3); x.fill(); }
+  y+=22; x.font=`500 13px ${F}`; x.fillStyle='#6b7488'; x.fillText(`진행 ${done}/${n} 단계`, pad, y); y+=16;
+  if(!boxes.length){ x.font=`500 15px ${F}`; x.fillText('기록된 Work flow 없음', pad, y+20); y+=30; }
+  boxes.forEach((b,i)=>{
+    if(i){ x.fillStyle='#aab2c5'; x.font=`400 18px ${F}`; x.textAlign='center'; x.fillText('↓', W/2, y+21); x.textAlign='left'; y+=30; }
+    x.fillStyle=b.s.done?'#f3fbf7':'#fff'; rr(x,pad,y,inner,b.h,12); x.fill();
+    x.strokeStyle=b.s.done?'#cdeedd':'#e2e6ee'; x.stroke();
+    x.fillStyle=b.s.done?'#2e9e6a':'#3b5bdb'; x.beginPath(); x.arc(pad+28,y+b.h/2,14,0,Math.PI*2); x.fill();
+    x.fillStyle='#fff'; x.font=`700 14px ${F}`; x.textAlign='center'; x.fillText(String(i+1), pad+28, y+b.h/2+5); x.textAlign='left';
+    x.font=`600 18px ${F}`; x.fillStyle=b.s.done?'#6b7488':'#1c2333';
+    const ty=y+b.h/2-(b.ls.length-1)*13+6;
+    b.ls.forEach((l,k)=>x.fillText(l,pad+54,ty+k*26));
+    const ow=b.s.owner||'미지정'; x.font=`600 14px ${F}`; const ww=x.measureText(ow).width+22;
+    x.fillStyle=b.s.owner?'#e8edff':'#eef0f4'; rr(x,pad+inner-ww-12,y+b.h/2-13,ww,26,13); x.fill();
+    x.fillStyle=b.s.owner?'#3b5bdb':'#6b7488'; x.fillText(ow,pad+inner-ww-1,y+b.h/2+5);
+    y+=b.h;
+  });
+  x.font=`400 11px ${F}`; x.fillStyle='#aab2c5'; x.textAlign='right'; x.fillText('Task Manager v'+VERSION, W-pad, H-pad+6);
+  return c;
+}
+function drawGeneric(tag,title,metas,body){
+  const F=FONT, W=760, pad=32, inner=W-pad*2, scale=2;
+  const m=document.createElement('canvas').getContext('2d');
+  m.font=`700 26px ${F}`; const tl=title?wrap(m,title,inner):[];
+  m.font=`400 16px ${F}`; const bl=body?wrap(m,body,inner-28):[];
+  const H=pad+24+14+tl.length*36+14+metas.length*28+(bl.length?bl.length*24+48:0)+pad+16;
+  const c=document.createElement('canvas'); c.width=W*scale; c.height=H*scale;
+  const x=c.getContext('2d'); x.scale(scale,scale);
+  x.fillStyle='#f4f6fa'; x.fillRect(0,0,W,H);
+  x.fillStyle='#fff'; rr(x,12,12,W-24,H-24,18); x.fill(); x.strokeStyle='#e2e6ee'; x.stroke();
+  let y=pad+8; x.font=`700 14px ${F}`; x.fillStyle='#3b5bdb'; x.fillText(tag,pad,y+14); y+=24+14;
+  x.font=`700 26px ${F}`; x.fillStyle='#1c2333'; tl.forEach(l=>{ y+=30; x.fillText(l,pad,y); y+=6; });
+  y+=14; metas.forEach(([k,v])=>{ x.font=`600 14px ${F}`; x.fillStyle='#6b7488'; x.fillText(k,pad,y+14); x.font=`500 15px ${F}`; x.fillStyle='#1c2333'; x.fillText(String(v||'-'),pad+96,y+14); y+=28; });
+  if(bl.length){ y+=10; const bh=bl.length*24+24; x.fillStyle='#fafbfd'; rr(x,pad,y,inner,bh,10); x.fill(); x.strokeStyle='#e2e6ee'; x.stroke();
+    x.font=`400 16px ${F}`; x.fillStyle='#1c2333'; bl.forEach((l,i)=>x.fillText(l,pad+14,y+28+i*24)); }
+  x.font=`400 11px ${F}`; x.fillStyle='#aab2c5'; x.textAlign='right'; x.fillText('Task Manager v'+VERSION, W-pad, H-pad+8);
+  return c;
+}
+const safeName = (s,d) => ('task_'+String(s).replace(/[\\/:*?"<>|\s]+/g,'_').slice(0,30)+'_'+String(d).replace(/-/g,'').slice(2)+'.png');
+
+/* ---------- VM ---------- */
+let SRCF='전체', VSORT={k:'date',d:-1};
+const srcOf=t=>t.doc?'공유':'Task';
+const VSORT_OPTS=[['date','일자'],['src','구분'],['title','제목'],['author','작성자'],['cat','카테고리'],['status','현황']];
+function vmRows(){
+  const q=$('q').value.trim().toLowerCase();
+  return S.tasks.filter(t=>(FS.vm==='전체'||(!t.doc&&t.status===FS.vm)) && (CATF==='전체'||t.cat===CATF) && (SRCF==='전체'||srcOf(t)===SRCF) &&
+      (!q || (t.title+' '+owners(t).join(' ')+' '+(t.doc?docContentText(docView(t)):'')).toLowerCase().includes(q)))
+    .sort((a,b)=>{ const k=VSORT.k, g=x=>k==='src'?srcOf(x):x[k], c = k==='status' ? STATUS.indexOf(a.status)-STATUS.indexOf(b.status) : String(g(a)||'').localeCompare(String(g(b)||''),'ko',{numeric:true}); return c*VSORT.d || b.date.localeCompare(a.date) || b.created-a.created; });
+}
+function renderList(){
+  renderSeg(); renderTabs(); renderExp('vm',$('expVm'));
+  $('cats').innerHTML = ['전체',...CATS].map(c=>`<button class="chip ${CATF===c?'on':''}" data-cat="${c}">${c}<b>${c==='전체'?S.tasks.length:S.tasks.filter(t=>t.cat===c).length}</b></button>`).join('');
+  $('srcs').innerHTML = '<span class="explbl">구분</span>'+['전체','공유','Task'].map(c=>`<button class="chip ${SRCF===c?'on':''}" data-src="${c}">${c}<b>${c==='전체'?S.tasks.length:S.tasks.filter(t=>srcOf(t)===c).length}</b></button>`).join('');
+  $('vSortSel').innerHTML=VSORT_OPTS.map(([k,l])=>`<option value="${k}:1">${l} ↑</option><option value="${k}:-1">${l} ↓</option>`).join(''); $('vSortSel').value=VSORT.k+':'+VSORT.d;
+  const rows=vmRows();
+  if(!rows.length){
+    $('list').innerHTML = `<div class="empty">${S.tasks.length?'조건에 맞는 Task가 없습니다.':'아직 Task가 없습니다.<br>“+ 새 Task”로 첫 업무를 기록해 보세요.'}</div>`; return;
+  }
+  const sh=(k,l)=>`<div class="sortable" data-vsort="${k}">${l}${VSORT.k===k?(VSORT.d>0?' ▲':' ▼'):''}</div>`;
+  $('list').innerHTML = `<div class="row head">${sh('date','일자')}${sh('src','구분')}${sh('title','제목')}${sh('author','작성자')}</div>` +
+    rows.map(t=>{
+      const done=t.steps.filter(s=>s.done).length;
+      return `<div class="row item" data-id="${t.id}">
+        <div class="date">${fmtHtml(t.date)}</div>
+        <div class="kind"><span class="cat ${t.doc?'share':'task'}">${srcOf(t)}</span></div>
+        <div class="t">${t.doc?'':`<span class="badge s${STATUS.indexOf(t.status)}">${t.status}</span>`}${esc(t.title)}<small><span class="cat">${esc(t.cat||'보고')}</span>${t.doc&&t.doc.tf?'TF '+esc(t.doc.tf)+(t.steps.length?' · ':''):''}${t.steps.length?`단계 ${done}/${t.steps.length}`:(t.doc?'':'단계 0/0')}</small></div>
+        <div class="who">${esc(t.author||'-')}</div>
+      </div>`;}).join('');
+}
+function openCard(id){ const t=S.tasks.find(x=>x.id===id); if(!t) return; cur=id; renderCard(); show('card'); }
+function vmText(t){
+  const o=owners(t);
+  let s=`[${t.cat||'보고'}] ${t.title}\n일자: ${fmtText(t.date)}\n현황: ${t.status}\n담당자: ${o.length?o.join(', '):'-'}\n\n[Work flow]\n`;
+  return s+t.steps.map((x,i)=>`${i+1}. ${x.name||'(단계명 없음)'} - ${x.owner||'미지정'}${x.done?' ✔':''}`).join('\n ↓\n');
+}
+function renderCard(){
+  const t=S.tasks.find(x=>x.id===cur); if(!t) return;
+  renderTabs();
+  const o=owners(t), done=t.steps.filter(s=>s.done).length, n=t.steps.length, pct=n?Math.round(done/n*100):0;
+  const hasSteps = n>0 || !t.doc;
+  const flow = n ? t.steps.map((s,i)=>
+    (i?'<div class="arrow">↓</div>':'') +
+    `<div class="node ${s.done?'done':''}"><input type="checkbox" data-step="${s.id}" ${s.done?'checked':''} title="완료 표시"><div class="no">${i+1}</div>
+      <div class="nm">${esc(s.name||'(단계명 없음)')}</div><div class="ow ${s.owner?'':'none'}">${s.owner?esc(s.owner):'미지정'}</div></div>`).join('') : '<div class="hint">기록된 Work flow가 없습니다.</div>';
+  const v = t.doc ? docView(t) : null;
+  const docBlock = t.doc ? `${t.doc.tf?`<div class="who">TF · ${esc(t.doc.tf)}</div>`:''}${t.doc.head==='R&R'?rrHtml(v):`<div class="body">${esc(t.doc.content||'(내용 없음)')}</div>`}` : '';
+  const mod = t.doc && typeof t.doc.final==='string';
+  const shareBlock = t.doc ? `<div class="panel" style="margin-top:14px"><h2>공유 텍스트 ${mod?'<span class="tag must">수정본</span>':''}</h2>
+      <p class="hint">완성된 텍스트를 필요에 맞게 수정한 뒤 공유하세요.</p>
+      <textarea class="tx" id="cFinal" rows="12">${esc(mod?t.doc.final:docAuto(v))}</textarea>
+      <div class="actions" style="margin-top:10px"><button class="btn" id="cFinalSave">수정 내용 저장</button><button class="btn" id="cFinalReset">틀대로 다시 만들기</button></div>${shareBarHtml()}</div>` : shareBarHtml();
+  $('v-card').innerHTML = `
+    <div class="toolbar"><button class="btn sm" id="cBack">← 목록</button><span style="flex:1"></span>
+      <button class="btn sm" id="cEdit">수정</button>${t.doc?'<button class="btn sm" id="cSteps">업무 단계</button>':''}<button class="btn sm danger" id="cDel">삭제</button></div>
+    <div class="card">
+      <div class="meta">${fmtHtml(t.date,true)}<span class="cat">${esc(t.cat||'보고')}</span>
+        ${t.doc?'':`<select class="stsel" id="cStatus">${STATUS.map(s=>`<option ${s===t.status?'selected':''}>${s}</option>`).join('')}</select>`}</div>
+      <h2>${esc(t.title)}</h2>
+      ${hasSteps?`<div class="who">담당자: ${o.length?esc(o.join(', ')):'-'}</div>`:''}
+      ${docBlock}
+      <div class="who" style="margin-top:12px">작성자 · ${esc(t.author||'-')}</div>
+      ${hasSteps?`<div class="prog"><i style="width:${pct}%"></i></div>
+      <div class="progtxt">진행 ${done}/${n} 단계 (${pct}%)</div>
+      <div class="flowtitle">Work flow</div><div class="flow">${flow}</div>`:''}
+    </div>${shareBlock}`;
+}
+function updWd(){
+  const v=$('fDate').value, el=$('fWd');
+  if(!v){ el.textContent=''; el.className='wd'; return; }
+  el.textContent=wdOf(v)+'요일'; el.className='wd '+wdCls(v);
+}
+function openEdit(id){
+  editId=id||null;
+  if(id){ draft=JSON.parse(JSON.stringify(S.tasks.find(x=>x.id===id))); $('editTitle').textContent='Task 수정'; }
+  else { draft={ id:uid(), date:todayStr(), cat:CATF!=='전체'?CATF:'보고', title:'', status:'배정', steps:[{id:uid(),name:'',owner:'',done:false}], created:Date.now() }; $('editTitle').textContent='새 Task'; }
+  $('fAuthor').innerHTML=authorOptions(draft.author||''); $('fDate').value=draft.date; $('fTitle').value=draft.title; $('fStatus').value=draft.status; $('fCat').value=draft.cat||'보고'; $('fCat').disabled=!!draft.doc; updWd();
+  renderSteps(); show('edit');
+}
+function refreshPeople(){ $('peopleList').innerHTML=S.people.map(p=>`<option value="${esc(p)}">`).join(''); }
+function renderSteps(){
+  refreshPeople();
+  $('steps').innerHTML = draft.steps.map((s,i)=>`
+    <div class="stepedit" data-i="${i}"><div class="no">${i+1}</div>
+      <input class="nm" type="text" data-k="name" placeholder="업무 단계 (예: 초안 작성)" value="${esc(s.name)}">
+      <input class="ow" type="text" data-k="owner" list="peopleList" placeholder="담당자" value="${esc(s.owner)}">
+      <div class="acts"><button class="icon" data-act="up" title="위로">↑</button><button class="icon" data-act="down" title="아래로">↓</button><button class="icon" data-act="del" title="삭제">✕</button></div></div>`).join('');
+}
+function addPeople(arr){ arr.forEach(n=>{ if(n && !S.people.includes(n)) S.people.push(n); }); }
+function saveEdit(){
+  const title=$('fTitle').value.trim();
+  if(!title){ toast('제목을 입력하세요'); $('fTitle').focus(); return; }
+  { const av=$('fAuthor').value; draft.author = av==='__new' ? (draft.author||'') : av; if(draft.author && !S.authors.includes(draft.author)) S.authors.push(draft.author); if(draft.doc) draft.doc.author=draft.author; }
+  draft.title=title; draft.date=$('fDate').value||todayStr(); draft.status=$('fStatus').value; draft.cat=$('fCat').value; if(draft.doc) draft.cat=draft.doc.head;
+  draft.steps=draft.steps.filter(s=>s.name.trim()||s.owner.trim()).map(s=>({...s,name:s.name.trim(),owner:s.owner.trim()}));
+  addPeople(draft.steps.map(s=>s.owner));
+  if(editId){ const i=S.tasks.findIndex(x=>x.id===editId); S.tasks[i]=draft; } else S.tasks.push(draft);
+  save(); toast('저장되었습니다'); openCard(draft.id);
+}
+
+/* ---------- R&R 헬퍼 / 이미지 ---------- */
+const NAME_COLORS=[['#e3ebff','#2f49b0'],['#ffe3e8','#c2304a'],['#dcf4e8','#1c8a58'],['#ffeacc','#b86512'],['#f0e4fc','#7a3fc4'],['#d9f1f6','#0f7f94'],['#fcefc2','#8c6a00'],['#fde0f2','#b02a80'],['#e6f2d3','#47820f'],['#e6e8f0','#454e63']];
+const splitNames = s => String(s||'').split(/[,，、\/·]+/).map(t=>t.trim()).filter(Boolean);
+function nameMap(x){ const m=new Map(); (x.rr||[]).forEach(r=>splitNames(r.owner).forEach(n=>{ if(!m.has(n)) m.set(n,NAME_COLORS[m.size%NAME_COLORS.length]); })); return m; }
+const flowText = x => (x.flow||[]).map(s=>s.name).filter(Boolean).join(' → ');
+const rrTable = x => (x.rr||[]).filter(r=>r.task||r.owner||r.follow).map((r,i)=>`${i+1}) ${r.task||'-'} | 담당: ${r.owner||'-'} | Follow-up: ${r.follow||'-'}`).join('\n');
+function docContentText(x){ if(x.head!=='R&R') return x.content||''; return '[Work flow] '+flowText(x)+'\n[R&R]\n'+rrTable(x)+(x.content?'\n[비고] '+x.content:''); }
+function rrHtml(x){
+  const cm=nameMap(x), col=n=>cm.get(n)||['#eef0f4','#454e63'];
+  const chip=n=>`<span class="nchip" style="background:${col(n)[0]};color:${col(n)[1]}">${esc(n)}</span>`;
+  const fl=(x.flow||[]).length ? `<div class="rrflow">${x.flow.map((s,i)=>`${i?'<span class="farr">→</span>':''}<span class="fbox"><b>${i+1}</b>${esc(s.name)}</span>`).join('')}</div>` : '<div class="hint">입력된 Work flow가 없습니다.</div>';
+  const legend = cm.size ? `<div class="legend">${[...cm.keys()].map(chip).join('')}</div>` : '';
+  const rows=(x.rr||[]);
+  const tb = rows.length ? `<div class="tw"><table class="rrt"><thead><tr><th>업무</th><th>담당자</th><th>Follow-up</th></tr></thead><tbody>${rows.map(r=>{ const ns=splitNames(r.owner); return `<tr style="--bar:${ns.length?col(ns[0])[1]:'transparent'}"><td>${esc(r.task)}</td><td>${ns.length?ns.map(chip).join(''):'-'}</td><td>${esc(r.follow)}</td></tr>`; }).join('')}</tbody></table></div>` : '<div class="hint">입력된 R&R이 없습니다.</div>';
+  return `<div class="sect">WORK FLOW</div>${fl}<div class="sect">R&R · 담당자별 색상</div>${legend}${tb}${x.content?`<div class="sect">비고</div><div class="body" style="margin-top:4px">${esc(x.content)}</div>`:''}`;
+}
+function paintRR(g,x,W,H){
+  const F=FONT, pad=36, inner=W-pad*2, cm=nameMap(x);
+  if(H){ g.fillStyle='#eef1f8'; g.fillRect(0,0,W,H); g.fillStyle='#fff'; rr(g,14,14,W-28,H-28,20); g.fill(); g.strokeStyle='#dfe4ef'; g.lineWidth=1; g.stroke(); }
+  g.textBaseline='alphabetic'; g.textAlign='left';
+  let y=pad+4;
+  const pill=(t,px,py,bg,fg,font)=>{ g.font=font; const w=Math.ceil(g.measureText(t).width)+20; g.fillStyle=bg; rr(g,px,py,w,26,13); g.fill(); g.fillStyle=fg; g.fillText(t,px+10,py+18); return w; };
+  let px=pad; px+=pill('R&R',px,y,'#3b5bdb','#fff',`700 13px ${F}`)+8;
+  if(x.tf) px+=pill('TF · '+x.tf,px,y,'#e8edff','#3b5bdb',`600 13px ${F}`)+8;
+  g.font=`500 14px ${F}`; g.fillStyle='#6b7488'; g.textAlign='right'; g.fillText(fmtText(x.date)+(x.author?'  ·  '+x.author:''),W-pad,y+18); g.textAlign='left';
+  y+=26+12;
+  g.font=`700 30px ${F}`; g.fillStyle='#1c2333'; wrap(g,x.title,inner).forEach(l=>{ y+=38; g.fillText(l,pad,y); }); y+=20;
+  const sect=t=>{ g.fillStyle='#3b5bdb'; rr(g,pad,y+2,5,18,2); g.fill(); g.font=`700 16px ${F}`; g.fillStyle='#1c2333'; g.fillText(t,pad+14,y+17); y+=36; };
+  sect('Work flow');
+  const fl=x.flow||[];
+  if(!fl.length){ g.font=`400 14px ${F}`; g.fillStyle='#9aa3b5'; g.fillText('입력된 Work flow 없음',pad,y+14); y+=30; }
+  else {
+    g.font=`600 15px ${F}`;
+    const boxes=fl.map((s,i)=>{ const full=s.name||'(단계명 없음)'; let t=full; const maxw=inner-90; while(g.measureText(t).width>maxw && t.length>1) t=t.slice(0,-1); if(t!==full) t+='…'; return {n:i+1,t,w:Math.ceil(g.measureText(t).width)+60}; });
+    const lines=[]; let cur=[],cw=0;
+    boxes.forEach(b=>{ const need=b.w+(cur.length?34:0); if(cur.length&&cw+need>inner){ lines.push(cur); cur=[b]; cw=b.w; } else { cur.push(b); cw+=need; } });
+    if(cur.length) lines.push(cur);
+    lines.forEach(ln=>{ let bx=pad;
+      ln.forEach((b,k)=>{
+        if(k){ g.font=`700 18px ${F}`; g.fillStyle='#aab2c5'; g.textAlign='center'; g.fillText('→',bx+17,y+29); g.textAlign='left'; bx+=34; }
+        g.fillStyle='#f3f6ff'; rr(g,bx,y,b.w,44,12); g.fill(); g.strokeStyle='#d5defa'; g.stroke();
+        g.fillStyle='#3b5bdb'; g.beginPath(); g.arc(bx+22,y+22,12,0,Math.PI*2); g.fill();
+        g.fillStyle='#fff'; g.font=`700 12px ${F}`; g.textAlign='center'; g.fillText(String(b.n),bx+22,y+26.5); g.textAlign='left';
+        g.fillStyle='#1c2333'; g.font=`600 15px ${F}`; g.fillText(b.t,bx+42,y+27);
+        bx+=b.w; });
+      y+=44+14; });
+    y+=6;
+  }
+  sect('R&R');
+  if(cm.size){
+    let lx=pad; g.font=`600 13px ${F}`;
+    [...cm.keys()].forEach(n=>{ const c=cm.get(n), w=Math.ceil(g.measureText(n).width)+22; if(lx+w>pad+inner){ lx=pad; y+=32; } g.fillStyle=c[0]; rr(g,lx,y,w,26,13); g.fill(); g.fillStyle=c[1]; g.fillText(n,lx+11,y+18); lx+=w+8; });
+    y+=26+14;
+  }
+  const cws=[Math.round(inner*.34),Math.round(inner*.24)]; cws.push(inner-cws[0]-cws[1]);
+  g.fillStyle='#1c2333'; rr(g,pad,y,inner,38,10); g.fill();
+  g.font=`700 14px ${F}`; g.fillStyle='#fff'; ['업무','담당자','Follow-up'].forEach((h,i)=>g.fillText(h,pad+[0,cws[0],cws[0]+cws[1]][i]+16,y+24)); y+=38;
+  const rows=x.rr||[];
+  if(!rows.length){ g.font=`400 14px ${F}`; g.fillStyle='#9aa3b5'; g.fillText('입력된 R&R 없음',pad+14,y+28); y+=44; }
+  rows.forEach((r,ri)=>{
+    g.font=`400 15px ${F}`; const tl2=wrap(g,r.task||'',cws[0]-30), fl2=wrap(g,r.follow||'',cws[2]-30);
+    g.font=`600 13px ${F}`;
+    const ns=splitNames(r.owner); let ox=0,oy=0; const pills=[];
+    ns.forEach(n=>{ const w=Math.ceil(g.measureText(n).width)+20; if(ox&&ox+w>cws[1]-30){ ox=0; oy++; } pills.push({n,ox,oy,w}); ox+=w+6; });
+    const h=Math.max(tl2.length*22,fl2.length*22,(oy+1)*32)+24;
+    if(ri%2===0){ g.fillStyle='#fafbfe'; g.fillRect(pad,y,inner,h); }
+    if(pills.length){ g.fillStyle=cm.get(pills[0].n)[1]; g.fillRect(pad,y,4,h); }
+    g.font=`600 15px ${F}`; g.fillStyle='#1c2333'; tl2.forEach((l,i)=>g.fillText(l,pad+16,y+29+i*22));
+    pills.forEach(pl=>{ const c=cm.get(pl.n), qx=pad+cws[0]+16+pl.ox, qy=y+12+pl.oy*32; g.fillStyle=c[0]; rr(g,qx,qy,pl.w,26,13); g.fill(); g.fillStyle=c[1]; g.font=`700 13px ${F}`; g.fillText(pl.n,qx+10,qy+18); });
+    if(!pills.length){ g.fillStyle='#9aa3b5'; g.font=`400 15px ${F}`; g.fillText('-',pad+cws[0]+16,y+29); }
+    g.font=`400 15px ${F}`; g.fillStyle='#3a4358'; fl2.forEach((l,i)=>g.fillText(l,pad+cws[0]+cws[1]+16,y+29+i*22));
+    g.strokeStyle='#e8ebf3'; g.lineWidth=1; g.beginPath(); g.moveTo(pad,y+h); g.lineTo(pad+inner,y+h); g.stroke();
+    y+=h;
+  });
+  if((x.content||'').trim()){
+    y+=18; sect('비고');
+    g.font=`400 15px ${F}`; g.fillStyle='#3a4358'; wrap(g,x.content,inner).forEach(l=>{ g.fillText(l,pad,y+4); y+=22; }); y+=6;
+  }
+  g.font=`400 11px ${F}`; g.fillStyle='#aab2c5'; g.textAlign='right'; g.fillText('VM Task Manager v'+VERSION,W-pad,y+34);
+  return y+34+pad-6;
+}
+function drawRR(x){
+  const W=900, scale=2, dummy=document.createElement('canvas').getContext('2d');
+  const H=Math.ceil(paintRR(dummy,x,W,0));
+  const c=document.createElement('canvas'); c.width=W*scale; c.height=H*scale;
+  const g=c.getContext('2d'); g.scale(scale,scale); paintRR(g,x,W,H); return c;
+}
+
+/* ---------- VM 공유 ---------- */
+let VMTAB='share', docEdit=null, shareManual=false, draftStore={share:null,rr:null};
+const SHARE_HEADS=['보고','제안','기획'];
+function renderSeg(){
+  const h=`<div class="seg"><button data-seg="share" class="${VMTAB==='share'?'on':''}">공유</button><button data-seg="task" class="${VMTAB==='task'?'on':''}">Task</button><button data-seg="rr" class="${VMTAB==='rr'?'on':''}">R&amp;R</button></div>`;
+  $('seg1').innerHTML=h; $('seg2').innerHTML=h;
+}
+function docVars(x){ return {'머리말':x.head,'제목':x.title,'작성자':x.author,'TF':x.tf,'일자':fmtText(x.date),'내용':x.content,'페이지':pageLabel('vm'),'워크플로우':flowText(x),'R&R표':rrTable(x)}; }
+function docAuto(x){
+  let t=S.tpl.docShare[x.head]||'';
+  if(!x.tf) t=t.split('\n').filter(l=>!l.includes('{TF}')).join('\n');
+  return fillTpl(t,docVars(x));
+}
+function docView(t){ const d=t.doc; return { head:d.head, date:t.date, title:t.title, author:d.author||t.author||'', tf:d.tf||'', content:d.content||'', flow:d.flow||[], rr:d.rr||[] }; }
+function cleanView(d){ return { ...d, flow:(d.flow||[]).filter(s=>s.name&&s.name.trim()), rr:(d.rr||[]).filter(r=>r.task||r.owner||r.follow) }; }
+const newDoc=h=>({ id:null, head:h||'보고', author:'', date:todayStr(), title:'', tf:'', content:'', flow:[], rr:[], final:undefined });
+const blankStep=()=>({id:uid(),name:''}), blankRR=()=>({id:uid(),task:'',owner:'',follow:''});
+function ensureRR(d){ if(d.head==='R&R'){ if(!d.flow.length) d.flow=[blankStep()]; if(!d.rr.length) d.rr=[blankRR()]; } }
+function tfOptions(sel){
+  const list=[...S.tfs]; if(sel && !list.includes(sel)) list.push(sel);
+  return '<option value="">(선택 안 함)</option>'+list.map(t=>`<option ${t===sel?'selected':''}>${esc(t)}</option>`).join('')+'<option value="__new">+ 새 TF 추가…</option>';
+}
+function authorOptions(sel){
+  const list=[...S.authors]; if(sel && !list.includes(sel)) list.push(sel);
+  return '<option value="">(선택)</option>'+list.map(n=>`<option ${n===sel?'selected':''}>${esc(n)}</option>`).join('')+'<option value="__new">+ 새 작성자 추가…</option>';
+}
+function btOptions(){ return '<option value="">템플릿</option>'+S.bodyTpls.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join(''); }
+function renderShare(){
+  renderSeg(); renderTabs();
+  if(!docEdit){ docEdit=newDoc(VMTAB==='rr'?'R&R':'보고'); shareManual=false; }
+  ensureRR(docEdit); renderDocForm(); renderShareOut();
+}
+function updDocWd(){ const el=$('dWd'); if(!el||!docEdit) return; const v=docEdit.date; el.textContent=v?wdOf(v)+'요일':''; el.className='wd '+(v?wdCls(v):''); }
+function renderDocForm(){
+  const e=docEdit, isRR=e.head==='R&R'; refreshPeople();
+  const acts=a=>`<div class="acts"><button type="button" class="icon" data-${a}="up" title="위로">↑</button><button type="button" class="icon" data-${a}="down" title="아래로">↓</button><button type="button" class="icon" data-${a}="del" title="삭제">✕</button></div>`;
+  const rrBlock = `
+    <div class="field"><label>Work flow · 전체 업무 흐름 (순서대로 입력)</label>
+      <div id="dFlow">${e.flow.map((s,i)=>`<div class="stepedit f3" data-fi="${i}"><div class="no">${i+1}</div><input class="nm" type="text" data-fk="name" value="${esc(s.name)}" placeholder="예) 요원 모집">${acts('fact')}</div>`).join('')}</div>
+      <button type="button" class="btn sm" id="dFlowAdd">+ 단계 추가</button></div>
+    <div class="field"><label>R&R · 업무 / 담당자 / Follow-up</label>
+      <p class="hint" style="margin-bottom:8px">담당자가 여러 명이면 쉼표(,)로 구분하세요. 이름마다 색상이 자동 지정됩니다.</p>
+      <div id="dRr">${e.rr.map((r,i)=>`<div class="rrrow" data-ri="${i}"><div class="no">${i+1}</div>
+        <input class="t" type="text" data-rk="task" value="${esc(r.task)}" placeholder="업무">
+        <input class="o" type="text" data-rk="owner" list="peopleList" value="${esc(r.owner)}" placeholder="담당자">
+        <textarea class="tx f" rows="2" data-rk="follow" placeholder="Follow-up">${esc(r.follow)}</textarea>${acts('ract')}</div>`).join('')}</div>
+      <button type="button" class="btn sm" id="dRrAdd">+ 업무 추가</button></div>
+    <div class="field"><label>비고 (선택)</label><textarea class="tx" id="dContent" rows="3">${esc(e.content)}</textarea></div>`;
+  const head = isRR ? (e.id?'R&R 수정':'새 R&R') : (e.id?'공유 수정':'');
+  const tfBlock = S.opts.tf ? `<div class="field" style="margin:${isRR?0:14}px 0 0"><label>카테고리 (TF) · 선택</label><select id="dTf">${tfOptions(e.tf)}</select></div>` : '';
+  $('dForm').innerHTML=`${head?`<h2>${head}</h2>`:''}
+    ${isRR?'':`<div class="field"><label>머리말</label><div class="hdsel">${SHARE_HEADS.map(h=>`<button type="button" class="chip ${e.head===h?'on':''}" data-dhead="${esc(h)}">${esc(h)}</button>`).join('')}</div></div>`}
+    <div class="field"><label>일자</label><div class="dline"><input type="date" class="dsm" id="dDate" value="${esc(e.date)}"><span class="wd" id="dWd"></span></div></div>
+    <div class="field"><label>제목</label><input type="text" id="dTitle" value="${esc(e.title)}"></div>
+    ${isRR ? rrBlock : `<div class="field" style="margin-bottom:0"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><label style="margin:0;flex:1">내용</label>${S.bodyTpls.length?`<select id="dBt" style="width:auto;font-size:13px;padding:5px 8px">${btOptions()}</select>`:''}<button type="button" class="btn sm" id="dBtSave">템플릿으로 저장</button></div><textarea class="tx" id="dContent" rows="10">${esc(e.content)}</textarea></div>`}
+    <div class="field" style="margin:14px 0 0"><label>작성자 <span class="tag must">필수</span></label><select id="dAuthor" style="max-width:260px">${authorOptions(e.author)}</select></div>
+    ${tfBlock}`;
+  updDocWd();
+}
+function renderShareOut(){
+  const e=docEdit, man=shareManual&&typeof e.final==='string';
+  $('shOut').innerHTML=`<h2>공유 텍스트 <span class="tag must ${man?'':'hide'}" id="dMod">수정본</span></h2>
+    <p class="hint">위에 입력한 내용이 공유 템플릿에 맞춰 자동으로 완성됩니다. 필요하면 직접 고친 뒤 바로 공유하세요.</p>
+    <textarea class="tx" id="dFinal" rows="12">${esc(man?e.final:docAuto(e))}</textarea>
+    <div class="actions" style="margin-top:10px"><button type="button" class="btn" id="dFinalReset">틀대로 다시 만들기</button></div>
+    ${shareBarHtml((e.id?'<button type="button" class="btn" id="dCancel">취소</button>':'')+`<button type="button" class="btn savebtn" id="dSave">${e.id?'수정 내용 저장':'저장'} → Task</button>`)}`;
+}
+function syncShare(){ if(!shareManual && $('dFinal')) $('dFinal').value=docAuto(docEdit); }
+function openShareEdit(id){
+  const t=S.tasks.find(x=>x.id===id); if(!t||!t.doc) return;
+  const d=JSON.parse(JSON.stringify(t.doc));
+  docEdit={ id:t.id, head:d.head, author:d.author||t.author||'', date:t.date, title:t.title, tf:d.tf||'', content:d.content||'', flow:d.flow||[], rr:d.rr||[], final:d.final };
+  shareManual=typeof d.final==='string';
+  VMTAB = d.head==='R&R' ? 'rr' : 'share'; navigate('vm');
+}
+function persistShare(){
+  const d=docEdit, title=d.title.trim(), author=(d.author||'').trim();
+  if(!author){ toast('작성자를 입력하세요'); $('dAuthor').focus(); return null; }
+  if(!title){ toast('제목을 입력하세요'); $('dTitle').focus(); return null; }
+  setAuthor(author); d.author=author; if(!S.authors.includes(author)) S.authors.push(author);
+  const doc={ head:d.head, author, tf:d.tf||'', content:d.content };
+  if(d.head==='R&R'){
+    doc.flow=d.flow.map(s=>({id:s.id,name:s.name.trim()})).filter(s=>s.name);
+    doc.rr=d.rr.map(r=>({id:r.id,task:r.task.trim(),owner:r.owner.trim(),follow:r.follow.trim()})).filter(r=>r.task||r.owner||r.follow);
+    doc.rr.forEach(r=>addPeople(splitNames(r.owner)));
+  }
+  if(shareManual && typeof d.final==='string') doc.final=d.final;
+  const date=d.date||todayStr();
+  let t = d.id ? S.tasks.find(x=>x.id===d.id) : null;
+  if(t){ t.title=title; t.date=date; t.cat=d.head; t.author=author; t.doc=doc; }
+  else { t={ id:uid(), date, cat:d.head, title, author, status:'배정', steps:[], created:Date.now(), doc }; S.tasks.push(t); }
+  d.id=t.id; save(); return t;
+}
+function saveShare(){
+  const t=persistShare(); if(!t) return;
+  draftStore[VMTAB]=null; docEdit=null; shareManual=false; VMTAB='task'; FS.vm='전체'; CATF='전체'; $('q').value='';
+  navigate('vm'); toast('Task에 저장되었습니다');
+  setTimeout(()=>{ const r=document.querySelector(`#list [data-id="${t.id}"]`); if(r){ r.classList.add('flash'); r.scrollIntoView({block:'center'}); } },30);
+}
+
+/* ---------- 템플릿 수정 ---------- */
+function renderTpl(){
+  const ta=(attr,val,rows)=>`<textarea class="tx" rows="${rows||7}" ${attr}>${esc(val)}</textarea>`;
+  const ph=k=>`<p class="hint">사용 가능한 항목: <code>${PH[k].split(' ').join('</code> <code>')}</code></p>`;
+  $('tplBody').innerHTML=`
+   <div class="panel" style="margin-bottom:14px"><div class="top" style="display:flex;align-items:center"><h2 style="flex:1">${esc(pageLabel('vm'))} · 내용 템플릿</h2><button class="btn sm primary" id="btAdd">+ 추가</button></div>
+     <p class="hint">공유 작성 화면의 “내용” 입력란에서 불러오는 문구입니다.</p>
+     ${S.bodyTpls.length?S.bodyTpls.map((b,i)=>`<div class="acc"><div class="top"><input type="text" style="flex:1" data-bt="name" data-bi="${i}" value="${esc(b.name)}"><button class="btn sm danger" data-btdel="${i}">삭제</button></div>
+       <div class="field" style="margin-top:8px"><textarea class="tx" rows="5" data-bt="text" data-bi="${i}">${esc(b.text)}</textarea></div></div>`).join(''):'<div class="hint">등록된 내용 템플릿이 없습니다.</div>'}
+   </div>
+   <div class="panel" style="margin-bottom:14px"><h2>${esc(pageLabel('vm'))} · 공유 템플릿</h2>
+     <p class="hint">머리말(기획/제안/보고/R&R)별 <b>공유 텍스트 틀</b>을 수정합니다. 공유 화면에서 입력한 내용이 이 틀에 맞춰 완성됩니다.</p>${ph('vm')}
+     ${HEADS.map(h=>`<div class="acc"><div class="top"><div class="id" style="flex:1">${esc(h)}${h==='R&R'?' <span class="tag manager">R&R 탭</span>':''}</div><button class="btn sm" data-treset="vm" data-k="${h}">기본값으로</button></div>
+       <div class="field" style="margin-top:8px">${ta(`data-tpl="docShare" data-k="${h}"`,S.tpl.docShare[h],h==='R&R'?9:6)}</div></div>`).join('')}
+   </div>
+   <div class="panel" style="margin-bottom:14px"><div class="top" style="display:flex;align-items:center"><h2 style="flex:1">${esc(pageLabel('rm'))} · 공유 텍스트 틀</h2><button class="btn sm" data-treset="rm">기본값으로</button></div>${ph('rm')}${ta('data-tpl="rm"',S.tpl.rm,8)}</div>
+   <div class="panel" style="margin-bottom:14px"><div class="top" style="display:flex;align-items:center"><h2 style="flex:1">${esc(pageLabel('hl'))} · 공유 텍스트 틀</h2><button class="btn sm" data-treset="hl">기본값으로</button></div>${ph('hl')}${ta('data-tpl="hl"',S.tpl.hl,7)}</div>
+   <div class="panel" style="margin-bottom:14px"><div class="top" style="display:flex;align-items:center"><h2 style="flex:1">${esc(pageLabel('oh'))} · 공유 텍스트 틀</h2><button class="btn sm" data-treset="oh">기본값으로</button></div>${ph('oh')}${ta('data-tpl="oh"',S.tpl.oh,8)}</div>
+   <div class="panel"><h2>카테고리 (TF) 목록</h2><label style="display:flex;gap:8px;align-items:center;margin:0 0 10px;font-size:14px"><input type="checkbox" id="tfOpt" ${S.opts.tf?'checked':''}> 공유·R&R 작성 화면에 카테고리(TF) 선택 표시 (선택 입력)</label><p class="hint">작성 시 선택할 TF 목록입니다.</p>
+     <div class="addrow"><input type="text" id="tfName" placeholder="TF 이름"><button class="btn primary" id="tfAdd">추가</button></div>
+     ${S.tfs.length?S.tfs.map((t,i)=>`<div class="srow"><span>${esc(t)}</span><button class="btn sm danger" data-tfdel="${i}">삭제</button></div>`).join(''):'<div class="hint">등록된 TF가 없습니다.</div>'}</div>`;
+}
+
+/* ---------- RM / HL ---------- */
+function recRows(p){
+  const R=REC[p], q=$('rq').value.trim().toLowerCase();
+  let a=S[R.arr].slice();
+  if(R.statuses && FS[p]!=='전체') a=a.filter(x=>x.status===FS[p]);
+  if(q && PG===p) a=a.filter(x=>R.skeys.map(k=>x[k]||'').join(' ').toLowerCase().includes(q));
+  if(p==='rm'){
+    const k=RSORT.k, c=(x,y)=> k==='status' ? REC.rm.statuses.indexOf(x.status)-REC.rm.statuses.indexOf(y.status) : String(x[k]||'').localeCompare(String(y[k]||''),'ko',{numeric:true});
+    return a.sort((x,y)=>c(x,y)*RSORT.d||y.date.localeCompare(x.date)||y.created-x.created);
+  }
+  return a.sort((x,y)=>y.date.localeCompare(x.date)||y.created-x.created);
+}
+let RSORT={k:'date',d:-1};
+const RSORT_OPTS=[['date','일자'],['no','Task No'],['owner','담당자'],['status','상태'],['cat','분류'],['title','제목']];
+function snip(s){ return esc(String(s||'').replace(/\s+/g,' ').slice(0,80)); }
+function statCls(p,s){ return 's'+({ '접수':0,'진행':1,'협업진행':3,'완료':2 }[s]??0); }
+function renderRec(){
+  const p=PG, R=REC[p]; renderTabs(); renderExp(p,$('expRec')); renderRmSeg(p==='rm'); $('rmImp').classList.toggle('hide',p!=='rm');
+  $('rNew').textContent = p==='rm' ? '+ 문의 등록' : '+ 새 기록';
+  { const ss=$('rSortSel'); ss.classList.toggle('hide',p!=='rm'); if(p==='rm'){ ss.innerHTML=RSORT_OPTS.map(([k,l])=>`<option value="${k}:1">${l} ↑</option><option value="${k}:-1">${l} ↓</option>`).join(''); ss.value=RSORT.k+':'+RSORT.d; } }
+  $('catList').innerHTML=catNames().map(c=>`<option value="${esc(c)}">`).join('');
+  $('rq').placeholder = p==='rm' ? 'Task No·제목·내용·담당자 검색' : '유형·제목·내용 검색';
+  const rows=recRows(p);
+  if(!rows.length){ $('rlist').innerHTML=`<div class="empty">${S[R.arr].length?'조건에 맞는 항목이 없습니다.':'아직 등록된 항목이 없습니다.<br>“'+$('rNew').textContent+'”으로 등록해 보세요.'}</div>`; return; }
+  const gt=`style="grid-template-columns:${R.cols}"`;
+  const hd = p==='rm' ? R.heads.map((h,i)=>{ const k=['no','date','cat','title','owner'][i]; return `<div class="sortable" data-sort="${k}">${h}${RSORT.k===k?(RSORT.d>0?' ▲':' ▼'):''}</div>`; }).join('') : R.heads.map(h=>`<div>${h}</div>`).join('');
+  $('rlist').innerHTML = `<div class="rrow head" ${gt}>${hd}</div>` + rows.map(x=>{
+    if(p==='rm') return `<div class="rrow item rm" ${gt} data-rid="${x.id}"><div class="m"><span class="tno">${esc(x.no)}</span></div><div class="m">${fmtHtml(x.date)}</div><div class="m">${esc(x.cat||'-')}</div><div class="t grow"><span class="badge ${statCls(p,x.status)}">${x.status}</span>${esc(x.title)}${x.reply?'<span class="rpl">답변</span>':''}<small>${snip(x.content)}</small></div><div class="m">${esc(x.owner||'-')}</div></div>`;
+    return `<div class="rrow item" ${gt} data-rid="${x.id}"><div class="m">${esc(x.type||'-')}</div><div class="t grow">${esc(x.title)}<small>${snip(x.content)}</small></div><div class="m">${fmtHtml(x.date)}</div></div>`;
+  }).join('');
+}
+function recMeta(p,x){
+  return p==='rm' ? [['Task No',x.no],['접수일자',fmtText(x.date)],['입력일자',fmtText(x.inDate||x.date)],['담당자',x.owner],['분류',x.cat],['처리 현황',x.status]]
+                  : [['유형',x.type],['일자',fmtText(x.date)]];
+}
+function recText(p,x){
+  const v = p==='rm' ? {'페이지':pageLabel('rm'),'티켓ID':x.no,'TaskNo':x.no,'티켓번호':x.no,'분류':x.cat,'제목':x.title,'배정일자':fmtText(x.date),'접수일자':fmtText(x.date),'일자':fmtText(x.date),'입력일자':fmtText(x.inDate||x.date),'담당자':x.owner,'현황':x.status,'답변':x.reply,'내용':x.content}
+                     : {'페이지':pageLabel('hl'),'유형':x.type,'제목':x.title,'일자':fmtText(x.date),'내용':x.content};
+  let t=S.tpl[p];
+  if(p==='rm' && !x.reply){ const out=[]; t.split('\n').forEach(l=>{ if(l.includes('{답변}')){ if(out.length&&out[out.length-1].trim()==='[답변]') out.pop(); return; } out.push(l); }); t=out.join('\n'); }
+  if(p==='rm' && !x.date) t=t.split('\n').filter(l=>!l.includes('{배정일자}')&&!l.includes('{접수일자}')).join('\n');
+  if(p==='rm' && x.status==='접수') t=t.split('\n').filter(l=>!l.includes('{현황}')).join('\n');
+  const r=fillTpl(t,v); return p==='rm' ? r.replace(/\s+$/,'') : r;
+}
+function openRecDetail(id){
+  const p=PG, x=S[REC[p].arr].find(r=>r.id===id); if(!x) return; curRec=id; renderRecDetail(); show('recd');
+}
+function renderRecDetail(){
+  const p=PG, R=REC[p], x=S[R.arr].find(r=>r.id===curRec); if(!x) return;
+  renderTabs();
+  $('v-recd').innerHTML = `
+    <div class="toolbar"><button class="btn sm" id="rdBack">← 목록</button><span style="flex:1"></span>
+      <button class="btn sm" id="rdEdit">수정</button><button class="btn sm danger" id="rdDel">삭제</button></div>
+    <div class="card">
+      <div class="meta">${p==='rm'?'':fmtHtml(x.date,true)}${p==='rm'?`<div class="stbtns">${R.statuses.map(s=>`<button type="button" class="stb ${s===x.status?'on '+statCls(p,s):''}" data-st="${s}">${s}</button>`).join('')}</div>`:(x.type?`<span class="cat">${esc(x.type)}</span>`:'')}</div>
+      <h2>${esc(x.title)}</h2>
+      <dl class="kv">${recMeta(p,x).filter(([k])=>k!=='일자'&&k!=='처리 현황'&&!(p==='hl'&&k==='유형')).map(([k,v])=>`<dt>${k}</dt><dd>${esc(v||'-')}</dd>`).join('')}</dl>
+      <div class="body">${esc(x.content||'(내용 없음)')}</div>
+    </div>${p==='rm'?`<div class="panel" style="margin-top:14px"><h2>답변${x.replyAt?` <small style="font-weight:400;color:var(--muted)">${esc(fmtText(ymd(x.replyAt)))}</small>`:''}</h2>
+      <textarea class="tx" id="rdReply" rows="5">${esc(x.reply||'')}</textarea>
+      <div class="actions" style="margin-top:10px"><button class="btn primary" id="rdReplySave">답변 저장</button>${x.reply?'<button class="btn danger" id="rdReplyDel">답변 삭제</button>':''}</div></div>`:''}${shareBarHtml()}`;
+}
+function openRecEdit(id){
+  const p=PG, R=REC[p]; recEdit={ id:id||null };
+  const x = id ? S[R.arr].find(r=>r.id===id) : { date:todayStr(), title:'', content:'', owner:'', status:'접수', type:'' };
+  $('typeList').innerHTML=[...new Set(S.hl.map(h=>h.type).filter(Boolean))].map(t=>`<option value="${esc(t)}">`).join('');
+  refreshPeople();
+  $('rForm').innerHTML = `<h2>${id?'수정':(p==='rm'?'문의 등록':'새 기록')}</h2>
+    <div class="two"><div class="field"><label>${p==='rm'?'접수일자':'일자'}</label><div class="dline"><input type="date" class="dsm" id="rDate" value="${esc(x.date)}"><span class="wd" id="rWd"></span></div></div>
+      ${p==='rm'?`<div class="field"><label>처리 현황</label><div class="stbtns" id="rStBtns" data-cur="${esc(x.status)}">${R.statuses.map(s=>`<button type="button" class="stb ${s===x.status?'on '+statCls(p,s):''}" data-rst="${s}">${s}</button>`).join('')}</div></div>`
+               :`<div class="field"><label>유형</label><input type="text" id="rType" list="typeList" value="${esc(x.type)}" placeholder="예) 질문 / 자료 / 기타"></div>`}
+    </div>
+    ${p==='rm'?`<div class="two"><div class="field"><label>Task No</label><input type="text" id="rNo" value="${esc(x.no||'')}" autocomplete="off"></div>
+      <div class="field"><label>담당자</label><input type="text" id="rOwner" list="peopleList" value="${esc(x.owner)}" placeholder="담당자"></div></div>
+    <div class="field"><label>분류</label><input type="text" id="rCat" list="catList" autocomplete="off" value="${esc(x.cat||'')}"></div>`:''}
+    <div class="field"><label>제목</label><input type="text" id="rTitle" value="${esc(x.title)}"></div>
+    <div class="field"><label>내용</label><textarea id="rContent">${esc(x.content)}</textarea></div>
+    <div class="actions"><button class="btn primary" id="rSave">저장</button><button class="btn" id="rCancel">취소</button></div>`;
+  const upd=()=>{ const v=$('rDate').value, el=$('rWd'); el.textContent=v?wdOf(v)+'요일':''; el.className='wd '+(v?wdCls(v):''); };
+  $('rDate').oninput=upd; $('rDate').onchange=upd; upd();
+  show('rece');
+}
+function nextTicketNo(date){
+  const ymd=date.replace(/-/g,'').slice(2), pre=`RM-${ymd}-`;
+  const mx=Math.max(0,...S.tickets.filter(t=>t.no&&t.no.startsWith(pre)).map(t=>parseInt(t.no.slice(pre.length),10)||0));
+  return pre+String(mx+1).padStart(3,'0');
+}
+function saveRec(){
+  const p=PG, R=REC[p], title=$('rTitle').value.trim();
+  if(!title){ toast('제목을 입력하세요'); $('rTitle').focus(); return; }
+  const date=$('rDate').value||(p==='rm'?'':todayStr()), content=$('rContent').value;
+  let no='';
+  if(p==='rm'){
+    no=normNo($('rNo').value);
+    if(!no){ toast('Task No를 입력하세요'); $('rNo').focus(); return; }
+    if(S.tickets.some(t=>t.no===no && t.id!==recEdit.id)){ toast('이미 사용 중인 Task No입니다'); $('rNo').focus(); return; }
+  }
+  let rec;
+  if(recEdit.id){ rec=S[R.arr].find(r=>r.id===recEdit.id); } else { rec={ id:uid(), created:Date.now(), reply:'' }; S[R.arr].push(rec); }
+  const dateChanged = rec.date && rec.date!==date;
+  Object.assign(rec,{ date, title, content });
+  if(p==='rm'){ rec.status=$('rStBtns').dataset.cur; rec.owner=$('rOwner').value.trim(); rec.cat=$('rCat').value.trim(); addPeople([rec.owner]); rec.no=no; if(!rec.inDate) rec.inDate=todayStr(); if(rmEdit&&rmEdit.id===rec.id) rmEdit=null; }
+  else { rec.type=$('rType').value.trim(); }
+  save(); toast('저장되었습니다'); curRec=rec.id; renderRecDetail(); show('recd');
+}
+
+/* ---------- RM 공유(작성) ---------- */
+let RMDATE_OPEN=false;
+const newRm=()=>({ id:null, no:'', cat:'', owner:'', date:todayStr(), inDate:todayStr(), title:'', content:'', final:undefined });
+function renderRmSeg(on){
+  const h=on===false?'':`<div class="seg"><button data-rseg="share" class="${RMTAB==='share'?'on':''}">공유</button><button data-rseg="list" class="${RMTAB==='list'?'on':''}">RM문의</button><button data-rseg="report" class="${RMTAB==='report'?'on':''}">현황 보고</button></div>`;
+  $('seg3').innerHTML=on===false||on==='rep'||on===true?'':h; $('seg4').innerHTML=on===true?h:''; $('seg5').innerHTML=on==='rep'?h:'';
+}
+function rmAsRec(){
+  const e=rmEdit, t=e.id?S.tickets.find(x=>x.id===e.id):null;
+  return { no:normNo(e.no), date:e.date||'', inDate:e.inDate, title:e.title, content:e.content, owner:e.owner||'', cat:e.cat||'', status:t?t.status:'접수', reply:t?t.reply:'' };
+}
+function rmAuto(){ const e=rmEdit; return e && (e.no.trim()||e.title.trim()||e.content.trim()||(e.owner||'').trim()||e.cat||e.date) ? recText('rm',rmAsRec()) : ''; }
+function updRmWd(){ const el=$('mWd'); if(!el||!rmEdit) return; const v=rmEdit.date; el.textContent=v?wdOf(v)+'요일':''; el.className='wd '+(v?wdCls(v):''); const sm=$('mDateSum'); if(sm) sm.textContent=v?fmtText(v):'미선택'; }
+function catOptions(sel){
+  const list=catNames(); if(sel && !list.includes(sel)) list.push(sel);
+  return '<option value="">(선택 안 함)</option>'+list.map(n=>`<option ${n===sel?'selected':''}>${esc(n)}</option>`).join('')+'<option value="__new">+ 새 분류 추가…</option>';
+}
+function ownerOptions(sel){
+  const list=[...S.people]; if(sel && !list.includes(sel)) list.push(sel);
+  return '<option value="">(선택 안 함)</option>'+list.map(n=>`<option ${n===sel?'selected':''}>${esc(n)}</option>`).join('')+'<option value="__new">+ 새 담당자 추가…</option>';
+}
+function renderRmShare(){
+  renderRmSeg(); renderTabs();
+  if(!rmEdit){ rmEdit=newRm(); rmManual=false; }
+  const e=rmEdit; refreshPeople();
+  $('catList').innerHTML=catNames().map(c=>`<option value="${esc(c)}">`).join('');
+  $('rmForm').innerHTML=`${e.id?'<h2>문의 수정</h2>':''}
+    <div class="field"><label>Task No <span class="tag must">필수</span></label><input type="text" id="mNo" autocomplete="off" value="${esc(e.no)}"></div>
+    <div class="field"><label>제목</label><input type="text" id="mTitle" value="${esc(e.title)}"></div>
+    <div class="field"><label>내용</label><textarea class="tx" id="mContent" rows="8">${esc(e.content)}</textarea></div>
+    <div class="two" style="margin-bottom:14px"><div class="field" style="margin:0"><label>담당자</label><select id="mOwner">${ownerOptions(e.owner)}</select></div>
+      <div class="field" style="margin:0"><label>분류</label><select id="mCat">${catOptions(e.cat)}</select></div></div>
+    <details class="fold" id="mDateBox" ${RMDATE_OPEN?'open':''}><summary>접수일자 (옵션) <span class="autod" id="mDateSum"></span></summary>
+      <div class="dline" style="margin-top:10px"><input type="date" class="dsm" id="mDate" value="${esc(e.date)}"><span class="wd" id="mWd"></span><button type="button" class="btn sm" id="mToday">오늘</button><button type="button" class="btn sm" id="mClear">지우기</button></div></details>
+    <div class="autost" id="mSt"></div>`;
+  renderRmOut(); updRmWd(); $('mDateBox').ontoggle=()=>{ RMDATE_OPEN=$('mDateBox').open; };
+  if(e.id) rmStatus('저장된 티켓입니다','ok');
+}
+function renderRmOut(){
+  const e=rmEdit, man=rmManual&&typeof e.final==='string';
+  $('rmOut').innerHTML=`<h2>공유 텍스트 <span class="tag must ${man?'':'hide'}" id="mMod">수정본</span></h2>
+    <textarea class="tx" id="mFinal" rows="10">${esc(man?e.final:rmAuto())}</textarea>
+    <div class="actions" style="margin-top:10px"><button type="button" class="btn" id="mFinalReset">틀대로 다시 만들기</button></div>
+    ${shareBarHtml('<button type="button" class="btn savebtn" id="mSave">저장 → RM문의</button>')}`;
+}
+function rmStatus(m,cls){ const st=$('mSt'); if(st){ st.textContent=m; st.className='autost '+(cls||''); } }
+function rmCommit(loud){
+  const e=rmEdit; if(!e) return null;
+  const no=normNo(e.no), title=e.title.trim(); if(no!==e.no.trim()){ e.no=no; if($('mNo')) $('mNo').value=no; }
+  if(!no){ if(loud){ toast('Task No를 입력하세요'); $('mNo').focus(); } else rmStatus(''); return null; }
+  if(!title){ if(loud){ toast('제목을 입력하세요'); $('mTitle').focus(); } else rmStatus(''); return null; }
+  if(S.tickets.some(t=>t.no===no && t.id!==e.id)){ rmStatus('이미 사용 중인 Task No입니다','err'); if(loud) toast('이미 사용 중인 Task No입니다'); return null; }
+  let t=e.id?S.tickets.find(x=>x.id===e.id):null;
+  if(!t){ t={ id:uid(), created:Date.now(), status:'접수', owner:'', reply:'', inDate:e.inDate||todayStr() }; S.tickets.push(t); e.id=t.id; }
+  Object.assign(t,{ no, date:e.date||'', title, content:e.content, owner:(e.owner||'').trim(), cat:(e.cat||'').trim() });
+  if(t.owner){ addPeople([t.owner]); setAuthor(t.owner); }
+  save(); const d=new Date(), p=n=>String(n).padStart(2,'0');
+  rmStatus('자동 저장됨 · '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()),'ok');
+  return t;
+}
+function rmQueue(){ clearTimeout(rmTimer); rmTimer=setTimeout(()=>{ rmTimer=null; rmCommit(false); },600); }
+function rmSyncOut(){ if(!rmManual && $('mFinal')) $('mFinal').value=rmAuto(); }
+
+/* ---------- OH ---------- */
+/* ---------- OH (서신발송 / 인터뷰) ---------- */
+const OH_HEADS=['서신발송','인터뷰어','인터뷰이'];
+let OHTAB='share', ohEdit=null, ohManual=false, ohMode='list', ohCur=null, ohDraft=null, OHF={head:'전체',src:'전체'}, OHSORT={k:'date',d:-1}, OHQ='';
+const newOh=()=>({ id:null, head:'서신발송', date:todayStr(), target:'', title:'', content:'', attach:[], final:undefined });
+const ohSt=()=> OHTAB==='share' ? ohEdit : (ohMode==='edit' ? ohDraft : null);
+function ohVars(x){ return {'머리말':x.head,'제목':x.title,'발송대상':x.target,'대상자':x.target,'내용':x.content,'본문내용':x.content,'첨부파일':(x.attach||[]).map(a=>a.name).join(', '),'일자':fmtText(x.date),'페이지':pageLabel('oh')}; }
+function ohAuto(x){ let t=S.tpl.oh; if(!(x.attach||[]).length) t=t.split('\n').filter(l=>!l.includes('{첨부파일}')).join('\n'); return fillTpl(t,ohVars(x)); }
+function ohText(e){ return (e.target.trim()||e.title.trim()||e.content.trim()||(e.attach||[]).length) ? ohAuto(e) : ''; }
+function ohSeg(){ return `<div class="seg"><button data-oseg="share" class="${OHTAB==='share'?'on':''}">공유</button><button data-oseg="task" class="${OHTAB==='task'?'on':''}">Task</button></div>`; }
+function attHtml(list,act){
+  return (list&&list.length) ? `<div class="attl">${list.map((a,i)=>`<span class="nchip" style="background:#eef0f4;color:#454e63">${a.data?`<a href="${a.data}" download="${esc(a.name)}" style="color:inherit;text-decoration:none">${esc(a.name)}</a>`:esc(a.name)}${act?`<button type="button" class="icon" data-oatt-del="${i}" style="padding:0 0 0 6px;border:0;background:transparent">✕</button>`:''}</span>`).join('')}</div>` : '';
+}
+function ohReadFiles(files,arr,cb){
+  const MAX=1024*1024; let n=files.length; if(!n) return; let big=false;
+  [...files].forEach(f=>{
+    const add=o=>{ arr.push(o); if(--n===0){ if(big) toast('1MB를 넘는 파일은 파일명만 기록됩니다'); cb(); } };
+    if(f.size>MAX){ big=true; add({name:f.name,size:f.size,type:f.type}); }
+    else { const r=new FileReader(); r.onload=()=>add({name:f.name,size:f.size,type:f.type,data:r.result}); r.onerror=()=>add({name:f.name,size:f.size,type:f.type}); r.readAsDataURL(f); }
+  });
+}
+function updOhWd(){ const st=ohSt(), el=$('oWd'); if(!el||!st) return; const v=st.date; el.textContent=v?wdOf(v)+'요일':''; el.className='wd '+(v?wdCls(v):''); }
+function ohFields(e){
+  const mail=e.head==='서신발송';
+  return `<datalist id="ohTargets">${[...new Set(S.oh.map(x=>x.target).filter(Boolean))].map(t=>`<option value="${esc(t)}">`).join('')}</datalist>
+    <div class="field"><label>일자</label><div class="dline"><input type="date" class="dsm" id="oDate" value="${esc(e.date)}"><span class="wd" id="oWd"></span></div></div>
+    <div class="field"><label>${mail?'발송대상':'대상자'}</label><input type="text" id="oTarget" list="ohTargets" autocomplete="off" value="${esc(e.target)}"></div>
+    <div class="fold" style="padding:12px 14px"><div style="font-weight:700;font-size:13.5px;margin-bottom:10px">${mail?'발송문구':'내용'}</div>
+      <div class="field"><label>제목</label><input type="text" id="oTitle" value="${esc(e.title)}"></div>
+      <div class="field"><label>본문내용</label><textarea class="tx" id="oContent" rows="8">${esc(e.content)}</textarea></div>
+      <div class="field" style="margin-bottom:0"><label>첨부파일</label><input type="file" id="oFile" multiple><div id="oAtt">${attHtml(e.attach,true)}</div></div></div>`;
+}
+function renderOh(){
+  renderTabs();
+  if(OHTAB==='share') renderOhShare(); else if(ohMode==='card') renderOhCard(); else if(ohMode==='edit') renderOhEdit(); else renderOhList();
+}
+function renderOhShare(){
+  if(!ohEdit){ ohEdit=newOh(); ohManual=false; }
+  const e=ohEdit;
+  $('v-oh').innerHTML=`${ohSeg()}<div class="panel">${e.id?'<h2>공유 수정</h2>':''}
+    <div class="field"><label>머리말</label><div class="hdsel"><button type="button" class="chip on">서신발송</button></div></div>
+    ${ohFields(e)}</div>
+    <div class="panel" id="ohOut" style="margin-top:14px"></div>`;
+  renderOhOut(); updOhWd();
+}
+function renderOhOut(){
+  const e=ohEdit, man=ohManual&&typeof e.final==='string';
+  $('ohOut').innerHTML=`<h2>공유 텍스트 <span class="tag must ${man?'':'hide'}" id="oMod">수정본</span></h2>
+    <textarea class="tx" id="oFinal" rows="10">${esc(man?e.final:ohText(e))}</textarea>
+    <div class="actions" style="margin-top:10px"><button type="button" class="btn" id="oFinalReset">틀대로 다시 만들기</button></div>
+    ${shareBarHtml((e.id?'<button type="button" class="btn" id="oCancel">취소</button>':'')+`<button type="button" class="btn savebtn" id="oSave">${e.id?'수정 내용 저장':'저장'} → Task</button>`)}`;
+}
+function ohSync(){ if(OHTAB==='share' && !ohManual && $('oFinal')) $('oFinal').value=ohText(ohEdit); }
+function ohPersist(){
+  const e=ohEdit, title=e.title.trim(), target=e.target.trim();
+  if(!target){ toast('발송대상을 입력하세요'); $('oTarget').focus(); return null; }
+  if(!title){ toast('제목을 입력하세요'); $('oTitle').focus(); return null; }
+  const man=ohManual&&typeof e.final==='string';
+  const rec={ head:e.head, date:e.date||todayStr(), target, title, content:e.content, attach:e.attach.slice() };
+  let t=e.id?S.oh.find(x=>x.id===e.id):null;
+  if(t){ Object.assign(t,rec); if(man) t.final=e.final; else delete t.final; }
+  else { t=Object.assign({ id:uid(), src:'공유', created:Date.now() },rec); if(man) t.final=e.final; S.oh.push(t); }
+  e.id=t.id; save(); return t;
+}
+/* list */
+const OHSORT_OPTS=[['date','일자'],['src','구분'],['title','제목'],['target','발송대상'],['head','머리말']];
+function ohRows(){
+  const q=OHQ.trim().toLowerCase(), k=OHSORT.k;
+  return S.oh.filter(x=>(OHF.head==='전체'||x.head===OHF.head)&&(OHF.src==='전체'||x.src===OHF.src)&&(!q||[x.title,x.target,x.content].join(' ').toLowerCase().includes(q)))
+    .sort((a,b)=>(String(a[k]||'').localeCompare(String(b[k]||''),'ko',{numeric:true})*OHSORT.d)||b.date.localeCompare(a.date)||b.created-a.created);
+}
+function ohListHtml(){
+  const rows=ohRows();
+  if(!rows.length) return `<div class="empty">${S.oh.length?'조건에 맞는 항목이 없습니다.':'아직 등록된 항목이 없습니다.<br>공유 탭에서 저장하거나 “+ 새 Task”로 등록해 보세요.'}</div>`;
+  const sh=(k,l)=>`<div class="sortable" data-osort="${k}">${l}${OHSORT.k===k?(OHSORT.d>0?' ▲':' ▼'):''}</div>`;
+  return `<div class="row head">${sh('date','일자')}${sh('src','구분')}${sh('title','제목')}${sh('target','발송대상')}</div>`+rows.map(x=>`<div class="row item" data-oid="${x.id}">
+    <div class="date">${fmtHtml(x.date)}</div><div class="kind"><span class="cat ${x.src==='공유'?'share':'task'}">${x.src}</span></div>
+    <div class="t">${esc(x.title)}<small><span class="cat">${esc(x.head)}</span>${(x.attach||[]).length?'첨부 '+x.attach.length:''}</small></div>
+    <div class="who">${esc(x.target||'-')}</div></div>`).join('');
+}
+function renderOhList(){
+  const cnt=(f)=>S.oh.filter(f).length;
+  $('v-oh').innerHTML=`${ohSeg()}
+    <div class="toolbar"><input class="search" id="oq" type="search" placeholder="제목·발송대상 검색" value="${esc(OHQ)}">
+      <select id="oSortSel" style="width:auto">${OHSORT_OPTS.map(([k,l])=>`<option value="${k}:1">${l} ↑</option><option value="${k}:-1">${l} ↓</option>`).join('')}</select>
+      <button class="btn primary" id="oNew">+ 새 Task</button></div>
+    <div class="cats"><span class="explbl">구분</span>${['전체','공유','Task'].map(c=>`<button class="chip ${OHF.src===c?'on':''}" data-osrc="${c}">${c}<b>${c==='전체'?S.oh.length:cnt(x=>x.src===c)}</b></button>`).join('')}</div>
+    <div class="cats">${['전체',...OH_HEADS].map(c=>`<button class="chip ${OHF.head===c?'on':''}" data-ohf="${c}">${c}<b>${c==='전체'?S.oh.length:cnt(x=>x.head===c)}</b></button>`).join('')}</div>
+    <div class="list" id="ohList">${ohListHtml()}</div>
+    <div class="toolbar" style="margin-top:14px"><div class="expbar" id="expOh"></div></div>`;
+  $('oSortSel').value=OHSORT.k+':'+OHSORT.d; renderExp('oh',$('expOh'));
+}
+function renderOhCard(){
+  const x=S.oh.find(r=>r.id===ohCur); if(!x){ ohMode='list'; renderOhList(); return; }
+  const mail=x.head==='서신발송';
+  $('v-oh').innerHTML=`${ohSeg()}<div class="toolbar"><button class="btn sm" id="oBack">← 목록</button><span style="flex:1"></span><button class="btn sm" id="oEdit">수정</button><button class="btn sm danger" id="oDel">삭제</button></div>
+    <div class="card"><div class="meta">${fmtHtml(x.date,true)}<span class="cat">${esc(x.head)}</span><span class="cat ${x.src==='공유'?'share':'task'}">${x.src}</span></div>
+      <h2>${esc(x.title)}</h2>
+      <dl class="kv"><dt>${mail?'발송대상':'대상자'}</dt><dd>${esc(x.target||'-')}</dd></dl>
+      <div class="body">${esc(x.content||'(내용 없음)')}</div>
+      ${(x.attach||[]).length?`<div class="flowtitle">첨부파일</div>${attHtml(x.attach,false)}`:''}</div>
+    <div class="panel" style="margin-top:14px"><h2>공유 텍스트</h2><textarea class="tx" id="oCardFinal" rows="10">${esc(typeof x.final==='string'?x.final:ohAuto(x))}</textarea>${shareBarHtml()}</div>`;
+}
+function renderOhEdit(){
+  const e=ohDraft;
+  $('v-oh').innerHTML=`${ohSeg()}<div class="panel"><h2>${e.id?'Task 수정':'새 Task'}</h2>
+    <div class="field"><label>머리말</label><select id="oHead" style="max-width:220px">${OH_HEADS.map(h=>`<option ${h===e.head?'selected':''}>${h}</option>`).join('')}</select></div>
+    ${ohFields(e)}
+    <div class="actions"><button class="btn primary" id="oESave">저장</button><button class="btn" id="oECancel">취소</button></div></div>`;
+  updOhWd();
+}
+function ohShareArgs(x,text){
+  return { text, canvas:()=>drawGeneric('OH · '+x.head,x.title,[[x.head==='서신발송'?'발송대상':'대상자',x.target],['일자',fmtText(x.date)]],(x.content||'')+((x.attach||[]).length?'\n\n첨부: '+x.attach.map(a=>a.name).join(', '):'')), name:safeName(x.title||'oh',x.date), title:x.title };
+}
+$('v-oh').oninput=e=>{
+  const t=e.target;
+  if(t.id==='oq'){ OHQ=t.value; $('ohList').innerHTML=ohListHtml(); return; }
+  const st=ohSt(); if(!st) return;
+  if(t.id==='oFinal'){ ohManual=true; st.final=t.value; $('oMod').classList.remove('hide'); return; }
+  if(t.id==='oDate'){ st.date=t.value; updOhWd(); }
+  else if(t.id==='oTarget') st.target=t.value;
+  else if(t.id==='oTitle') st.title=t.value;
+  else if(t.id==='oContent') st.content=t.value;
+  else return;
+  ohSync();
+};
+$('v-oh').onchange=e=>{
+  const t=e.target, st=ohSt();
+  if(t.id==='oSortSel'){ const [k,d]=t.value.split(':'); OHSORT={k,d:+d}; renderOhList(); return; }
+  if(!st) return;
+  if(t.id==='oDate'){ st.date=t.value; updOhWd(); ohSync(); }
+  else if(t.id==='oHead'){ st.head=t.value; renderOhEdit(); }
+  else if(t.id==='oFile'){ const f=t.files; ohReadFiles(f,st.attach,()=>{ $('oAtt').innerHTML=attHtml(st.attach,true); ohSync(); }); t.value=''; }
+};
+$('v-oh').onclick=e=>{
+  const t=e.target;
+  const sg=t.closest('[data-oseg]');
+  if(sg){ const to=sg.dataset.oseg; if(to===OHTAB) return; OHTAB=to; ohMode='list'; ohDraft=null; renderOh(); return; }
+  const rowEl=t.closest('[data-oid]'); const srt=t.closest('[data-osort]');
+  if(srt){ const k=srt.dataset.osort; if(OHSORT.k===k) OHSORT.d*=-1; else OHSORT={k,d:k==='date'?-1:1}; renderOhList(); return; }
+  const sc=t.closest('[data-osrc]'); if(sc){ OHF.src=sc.dataset.osrc; renderOhList(); return; }
+  const hc=t.closest('[data-ohf]'); if(hc){ OHF.head=hc.dataset.ohf; renderOhList(); return; }
+  if(rowEl){ ohCur=rowEl.dataset.oid; ohMode='card'; renderOh(); return; }
+  const ad=t.closest('[data-oatt-del]'); if(ad){ const st=ohSt(); if(st){ st.attach.splice(+ad.dataset.oattDel,1); $('oAtt').innerHTML=attHtml(st.attach,true); ohSync(); } return; }
+  const b=t.closest('button'); if(!b) return; const id=b.id;
+  if(id==='oNew'){ ohDraft={ id:null, head:'서신발송', date:todayStr(), target:'', title:'', content:'', attach:[], src:'Task' }; ohMode='edit'; renderOh(); }
+  else if(id==='oBack'){ ohMode='list'; renderOh(); }
+  else if(id==='oEdit'){ const x=S.oh.find(r=>r.id===ohCur); if(!x) return; ohDraft=JSON.parse(JSON.stringify(x)); ohMode='edit'; renderOh(); }
+  else if(id==='oDel'){ if(confirm('삭제할까요?')){ S.oh=S.oh.filter(r=>r.id!==ohCur); if(ohEdit&&ohEdit.id===ohCur) ohEdit=null; save(); ohMode='list'; renderOh(); toast('삭제되었습니다'); } }
+  else if(id==='oECancel'){ ohMode=ohDraft&&ohDraft.id?'card':'list'; ohDraft=null; renderOh(); }
+  else if(id==='oESave'){
+    const d=ohDraft, title=d.title.trim(), target=d.target.trim();
+    if(d.head==='서신발송' && !target){ toast('발송대상을 입력하세요'); $('oTarget').focus(); return; }
+    if(!title){ toast('제목을 입력하세요'); $('oTitle').focus(); return; }
+    const rec={ head:d.head, date:d.date||todayStr(), target, title, content:d.content, attach:d.attach.slice() };
+    let x=d.id?S.oh.find(r=>r.id===d.id):null;
+    if(x){ Object.assign(x,rec); delete x.final; } else { x=Object.assign({ id:uid(), src:'Task', created:Date.now() },rec); S.oh.push(x); }
+    save(); ohCur=x.id; ohMode='card'; ohDraft=null; renderOh(); toast('저장되었습니다');
+  }
+  else if(id==='oFinalReset'){ ohManual=false; ohEdit.final=undefined; renderOhOut(); toast('틀대로 다시 만들었습니다'); }
+  else if(id==='oCancel'){ const cid=ohEdit.id; ohEdit=null; ohManual=false; OHTAB='task'; ohMode='card'; ohCur=cid; renderOh(); }
+  else if(id==='oSave'){
+    const x=ohPersist(); if(!x) return;
+    ohEdit=null; ohManual=false; OHTAB='task'; ohMode='list'; OHF={head:'전체',src:'전체'}; OHQ=''; renderOh(); toast('Task에 저장되었습니다');
+    setTimeout(()=>{ const r=document.querySelector(`#ohList [data-oid="${x.id}"]`); if(r){ r.classList.add('flash'); r.scrollIntoView({block:'center'}); } },30);
+  }
+  else if(['shText','shImg','shShare'].includes(id)){
+    if(OHTAB==='share'){
+      const isNew=!ohEdit.id, x=ohPersist(); if(!x) return;
+      if(isNew){ const sv=$('oSave'); if(sv) sv.textContent='수정 내용 저장 → Task'; }
+      doShare(id,Object.assign(ohShareArgs(x,$('oFinal').value),{ note:'Task에 자동 저장됨' }));
+    } else if(ohMode==='card'){
+      const x=S.oh.find(r=>r.id===ohCur); if(x) doShare(id,ohShareArgs(x,$('oCardFinal').value));
+    }
+  }
+};
+
+
+/* ---------- settings ---------- */
+let SECMENU_OPEN=false;
+function applySecMenu(){ $('secMenuBody').classList.toggle('hide',!SECMENU_OPEN); $('secMenuCaret').textContent=SECMENU_OPEN?'▾':'▸'; }
+function renderSettings(){
+  const m=sp('menu'), f=sp('format'), c=sp('codes'), pp=sp('people'), d=sp('data'), a=isAdmin(), tp=sp('tpl');
+  $('secMenu').classList.toggle('hide',!m); $('secFmt').classList.toggle('hide',!f); $('secAccBtn').classList.toggle('hide',!c);
+  $('secPeople').classList.toggle('hide',!pp); $('secAcc').classList.toggle('hide',!a); $('secData').classList.toggle('hide',!d);
+  $('resetBtn').classList.toggle('hide',!a); $('noteBtn').classList.toggle('hide',!a);
+  $('secTpl').classList.toggle('hide',!tp);
+  $('secNone').classList.toggle('hide', m||f||c||pp||d||a||tp);
+  document.querySelector('#noteBtn .rv').textContent='v'+VERSION;
+  $('lastChg').textContent='마지막 변경 데이터: '+fmtDT(S.lastChanged); applySecMenu(); syncUI();
+  $('setHome').textContent = allowedPages()[0] ? '← 일반 페이지로' : '← 접근 코드 입력으로';
+  if(m) renderMenuSettings();
+  if(f) $('fmtList').innerHTML=[['text','텍스트 복사'],['image','이미지 저장'],['share','기기 공유']].map(([k,l])=>`<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-fmt="${k}" ${S.fmt[k]?'checked':''}> ${l}</label>`).join('');
+  if(pp) $('pList').innerHTML = S.people.length ? S.people.map((p,i)=>`<div class="srow"><span>${esc(p)}</span><button class="btn sm danger" data-pdel="${i}">삭제</button></div>`).join('') : '<div class="hint">등록된 담당자가 없습니다.</div>';
+  if(a) renderAccounts();
+}
+function renderMenuSettings(){
+  $('mList').innerHTML = S.pages.map((p,i)=>`<div class="mrow">
+    <label><input type="checkbox" data-mi="${i}" data-mk="on" ${p.on?'checked':''}> 표시</label>
+    <input type="text" data-mi="${i}" data-mk="label" value="${esc(p.label)}">
+    <span class="desc">${esc(PAGE_DEF[p.id].desc)}</span>
+    ${PAGE_DEF[p.id].exp?`<div class="outs">${ALL_OUT.map(o=>`<label><input type="checkbox" data-mi="${i}" data-out="${o}" ${p.out.includes(o)?'checked':''}> ${OUTL[o]}</label>`).join('')}</div>`:'<span class="desc">출력 없음</span>'}
+    <button class="icon" data-mmove="-1" data-mi="${i}" ${i===0?'disabled':''}>↑</button><button class="icon" data-mmove="1" data-mi="${i}" ${i===S.pages.length-1?'disabled':''}>↓</button></div>`).join('');
+}
+function renderAccounts(){
+  $('aList').innerHTML = S.users.map(u=>{
+    const self = SES.acct && u.id===SES.acct.id;
+    const perms = u.role==='manager' ? `<details><summary>권한 설정</summary><div class="perms">${
+      Object.keys(PERM_LABELS).map(k=>`<label><input type="checkbox" data-uid="${esc(u.id)}" data-perm="${k}" ${u.perms&&u.perms[k]?'checked':''}> ${PERM_LABELS[k]}</label>`).join('')}</div></details>` : '<div class="hint" style="margin:6px 0 0">모든 설정 권한 보유</div>';
+    return `<div class="acc"><div class="top"><div class="id" style="flex:1">${esc(u.id)}${self?' (나)':''}<span class="tag ${u.role}">${u.role==='admin'?'관리자':'매니저'}</span>${u.must?'<span class="tag must">초기 비밀번호</span>':''}</div>
+      <button class="btn sm" data-uact="reset" data-uid="${esc(u.id)}">비밀번호 초기화</button>
+      <button class="btn sm danger" data-uact="del" data-uid="${esc(u.id)}" ${self?'disabled':''}>삭제</button></div>${perms}</div>`;
+  }).join('');
+}
+function renderNotes(){
+  $('noteBody').innerHTML = RELEASES.map(r=>`<div class="note"><h3>v${r.v}<small>${r.date}</small></h3><ul>${r.items.map(i=>`<li>${esc(i)}</li>`).join('')}</ul></div>`).join('');
+}
+
+/* ---------- events ---------- */
+$('verBadge').textContent='v'+VERSION; document.title='VM Task Manager v'+VERSION;
+$('today').innerHTML='오늘 '+fmtHtml(todayStr(),true);
+$('gBtn').onclick=doGate; $('gCode').onkeydown=e=>{ if(e.key==='Enter') doGate(); };
+$('gearBtn').onclick=()=>navigate('set'); $('setHome').onclick=$('toGate').onclick=()=>{ if(SES&&allowedPages()[0]) navigate(allowedPages()[0].id); else { PG=null; renderNav(); show('gate'); } };
+$('lBtn').onclick=doLogin; $('lPw').onkeydown=e=>{ if(e.key==='Enter') doLogin(); }; $('lId').onkeydown=e=>{ if(e.key==='Enter') $('lPw').focus(); };
+$('outBtn').onclick=logout; $('pwBtn').onclick=()=>openPw(false); $('pwSave').onclick=savePw;
+$('pwCancel').onclick=()=>$('pwOv').classList.remove('on');
+['pwCur','pwNew','pwNew2'].forEach(i=>$(i).onkeydown=e=>{ if(e.key==='Enter') savePw(); });
+
+$('menu').onclick=e=>{ const b=e.target.closest('[data-p]'); if(!b) return; if(b.dataset.p==='rm' && PG!=='rm') RMTAB='share'; if(b.dataset.p==='oh' && PG!=='oh'){ OHTAB='share'; ohMode='list'; } navigate(b.dataset.p); };
+$('tabs').onclick=e=>{ const b=e.target.closest('[data-f]'); if(!b) return; FS[PG]=b.dataset.f; navigate(PG); };
+
+/* VM */
+$('newBtn').onclick=()=>openEdit(); $('q').oninput=renderList;
+$('cats').onclick=e=>{ const b=e.target.closest('[data-cat]'); if(b){ CATF=b.dataset.cat; renderList(); } };
+$('list').onclick=e=>{
+  const h=e.target.closest('[data-vsort]');
+  if(h){ const k=h.dataset.vsort; if(VSORT.k===k) VSORT.d*=-1; else VSORT={k,d:k==='date'?-1:1}; renderList(); return; }
+  const r=e.target.closest('[data-id]'); if(r) openCard(r.dataset.id);
+};
+$('vSortSel').onchange=e=>{ const [k,d]=e.target.value.split(':'); VSORT={k,d:+d}; renderList(); };
+$('srcs').onclick=e=>{ const b=e.target.closest('[data-src]'); if(b){ SRCF=b.dataset.src; renderList(); } };
+function vmShareObj(t){
+  if(t.doc){ const v=docView(t), text=$('cFinal').value;
+    return { text, canvas:()=> t.doc.head==='R&R' ? drawRR(cleanView(v)) : drawGeneric(t.doc.head+' 공유','',[],text), name:safeName(t.title,t.date), title:t.title }; }
+  return { text:vmText(t), canvas:()=>drawCard(t), name:safeName(t.title,t.date), title:t.title };
+}
+$('v-card').onclick=async e=>{
+  const t=S.tasks.find(x=>x.id===cur); if(!t) return; const id=e.target.id;
+  if(id==='cBack'){ renderList(); show('list'); }
+  else if(id==='cEdit'){ if(t.doc) openShareEdit(cur); else openEdit(cur); }
+  else if(id==='cSteps') openEdit(cur);
+  else if(id==='cFinalSave'){ t.doc.final=$('cFinal').value; save(); renderCard(); toast('수정한 공유 텍스트를 저장했습니다'); }
+  else if(id==='cFinalReset'){ delete t.doc.final; save(); renderCard(); toast('틀대로 다시 만들었습니다'); }
+  else if(id==='cDel'){ if(confirm('이 Task를 삭제할까요?')){ S.tasks=S.tasks.filter(x=>x.id!==cur); save(); renderList(); show('list'); toast('삭제되었습니다'); } }
+  else if(['shText','shImg','shShare'].includes(id)) doShare(id,vmShareObj(t));
+  else if(e.target.dataset.step){
+    const s=t.steps.find(x=>x.id===e.target.dataset.step);
+    if(s){ s.done=e.target.checked;
+      if(t.steps.length && t.steps.every(x=>x.done)) t.status='완료';
+      else if(t.status==='완료') t.status='진행';
+      else if(t.status==='배정' && s.done) t.status='진행';
+      save(); renderCard(); }
+  }
+};
+$('v-card').onchange=e=>{ if(e.target.id==='cStatus'){ const t=S.tasks.find(x=>x.id===cur); t.status=e.target.value; save(); renderCard(); } };
+$('fDate').onchange=updWd; $('fDate').oninput=updWd;
+$('addStep').onclick=()=>{ draft.steps.push({id:uid(),name:'',owner:'',done:false}); renderSteps(); const n=$('steps').querySelectorAll('.nm'); n[n.length-1].focus(); };
+$('steps').oninput=e=>{ const row=e.target.closest('.stepedit'); if(row&&e.target.dataset.k) draft.steps[+row.dataset.i][e.target.dataset.k]=e.target.value; };
+$('steps').onclick=e=>{
+  const b=e.target.closest('[data-act]'); if(!b) return; const i=+b.closest('.stepedit').dataset.i, a=b.dataset.act, st=draft.steps;
+  if(a==='del') st.splice(i,1);
+  else if(a==='up'&&i>0) [st[i-1],st[i]]=[st[i],st[i-1]];
+  else if(a==='down'&&i<st.length-1) [st[i+1],st[i]]=[st[i],st[i+1]];
+  renderSteps();
+};
+$('fAuthor').onchange=e=>{
+  const t=e.target; if(t.value!=='__new') return;
+  const n=(prompt('새 작성자 이름')||'').trim();
+  if(n){ if(!S.authors.includes(n)) S.authors.push(n); save(); draft.author=n; t.innerHTML=authorOptions(n); } else t.innerHTML=authorOptions(draft.author||'');
+};
+$('saveBtn').onclick=saveEdit;
+$('cancelBtn').onclick=()=>{ if(editId) openCard(editId); else { renderList(); show('list'); } };
+
+/* VM 공유 / 템플릿 */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-seg]'); if(!b||!SES) return;
+  const to=b.dataset.seg; if(to===VMTAB) return;
+  if(VMTAB==='share'||VMTAB==='rr') draftStore[VMTAB]=docEdit?{d:docEdit,m:shareManual}:null;
+  VMTAB=to;
+  if(to==='share'||to==='rr'){ const st=draftStore[to]; docEdit=st?st.d:null; shareManual=st?st.m:false; } else { docEdit=null; shareManual=false; }
+  navigate('vm');
+});
+function moveItem(arr,i,a){ if(a==='del') arr.splice(i,1); else if(a==='up'&&i>0) [arr[i-1],arr[i]]=[arr[i],arr[i-1]]; else if(a==='down'&&i<arr.length-1) [arr[i+1],arr[i]]=[arr[i],arr[i+1]]; }
+$('v-share').oninput=e=>{
+  const t=e.target, d=docEdit; if(!d) return;
+  if(t.id==='dFinal'){ shareManual=true; d.final=t.value; $('dMod').classList.remove('hide'); return; }
+  if(t.id==='dTitle') d.title=t.value;
+  else if(t.id==='dContent') d.content=t.value;
+  else if(t.id==='dDate'){ d.date=t.value; updDocWd(); }
+  else if(t.id==='dAuthor'){ if(t.value==='__new') return; d.author=t.value; }
+  else if(t.dataset.fk){ d.flow[+t.closest('[data-fi]').dataset.fi][t.dataset.fk]=t.value; }
+  else if(t.dataset.rk){ d.rr[+t.closest('[data-ri]').dataset.ri][t.dataset.rk]=t.value; }
+  else return;
+  syncShare();
+};
+$('v-share').onclick=e=>{
+  const b=e.target.closest('button'), d=docEdit; if(!b||!d) return; const id=b.id;
+  if(b.dataset.dhead){
+    const nh=b.dataset.dhead; if(nh===d.head) return;
+    d.head=nh; shareManual=false; d.final=undefined; ensureRR(d); renderDocForm(); renderShareOut();
+  }
+  else if(id==='dFlowAdd'){ d.flow.push(blankStep()); renderDocForm(); syncShare(); const a=document.querySelectorAll('#dFlow input'); a[a.length-1].focus(); }
+  else if(id==='dRrAdd'){ d.rr.push(blankRR()); renderDocForm(); syncShare(); const a=document.querySelectorAll('#dRr input[data-rk="task"]'); a[a.length-1].focus(); }
+  else if(b.dataset.fact){ moveItem(d.flow,+b.closest('[data-fi]').dataset.fi,b.dataset.fact); renderDocForm(); syncShare(); }
+  else if(b.dataset.ract){ moveItem(d.rr,+b.closest('[data-ri]').dataset.ri,b.dataset.ract); renderDocForm(); syncShare(); }
+  else if(id==='dFinalReset'){ shareManual=false; d.final=undefined; renderShareOut(); toast('틀대로 다시 만들었습니다'); }
+  else if(['shText','shImg','shShare'].includes(id)){
+    const isNew=!d.id, t=persistShare(); if(!t) return;
+    if(isNew){ const sv=$('dSave'); if(sv) sv.textContent='수정 내용 저장 → Task'; }
+    const text=$('dFinal').value;
+    doShare(id,{ text, note:'Task에 자동 저장됨', canvas:()=> d.head==='R&R' ? drawRR(cleanView(d)) : drawGeneric(d.head+' 공유','',[],text), name:safeName(d.title||'share',d.date), title:d.title||d.head });
+  }
+  else if(id==='dBtSave'){
+    if(!(d.content||'').trim()){ toast('저장할 내용을 먼저 입력하세요'); return; }
+    const n=(prompt('템플릿 이름')||'').trim(); if(!n) return;
+    S.bodyTpls.push({ id:uid(), name:n, text:d.content }); save(); renderDocForm(); toast('내용 템플릿으로 저장했습니다');
+  }
+  else if(id==='dSave') saveShare();
+  else if(id==='dCancel'){ const tid=d.id; draftStore[VMTAB]=null; docEdit=null; shareManual=false; VMTAB='task'; navigate('vm'); openCard(tid); }
+};
+$('v-share').onchange=e=>{
+  const t=e.target; if(!docEdit) return;
+  if(t.id==='dAuthor'){
+    if(t.value==='__new'){
+      const n=(prompt('새 작성자 이름')||'').trim();
+      if(n){ if(!S.authors.includes(n)) S.authors.push(n); save(); docEdit.author=n; t.innerHTML=authorOptions(n); }
+      else t.value=docEdit.author||'';
+    }
+    syncShare(); return;
+  }
+  if(t.id==='dBt'){
+    const bt=S.bodyTpls.find(x=>x.id===t.value); t.value=''; if(!bt) return;
+    const c=docEdit.content||''; docEdit.content = c.trim() ? c.replace(/\s+$/,'')+'\n\n'+bt.text : bt.text;
+    $('dContent').value=docEdit.content; syncShare(); toast('템플릿을 넣었습니다'); return;
+  }
+  if(t.id==='dTf'){
+    if(t.value==='__new'){
+      const n=(prompt('새 TF 이름')||'').trim();
+      if(n){ if(!S.tfs.includes(n)) S.tfs.push(n); save(); docEdit.tf=n; t.innerHTML=tfOptions(n); }
+      else t.value=docEdit.tf||'';
+    } else docEdit.tf=t.value;
+    syncShare();
+  }
+  else if(t.id==='dDate'){ docEdit.date=t.value; updDocWd(); syncShare(); }
+};
+$('v-tpl').onchange=e=>{ if(e.target.id==='tfOpt'&&sp('tpl')){ S.opts.tf=e.target.checked; save(); toast(S.opts.tf?'TF 선택을 표시합니다':'TF 선택을 숨깁니다'); } };
+$('tplOpen').onclick=()=>{ if(!sp('tpl')) return; renderTpl(); show('tpl'); };
+$('tplBack').onclick=()=>{ renderSettings(); show('set'); };
+$('v-tpl').oninput=e=>{
+  if(!sp('tpl')) return; const t=e.target;
+  if(t.dataset.bt){ const b=S.bodyTpls[+t.dataset.bi]; if(b){ b[t.dataset.bt]=t.value; save(); } return; }
+  if(!t.dataset.tpl) return;
+  if(t.dataset.k) S.tpl[t.dataset.tpl][t.dataset.k]=t.value; else S.tpl[t.dataset.tpl]=t.value;
+  save();
+};
+$('v-tpl').onclick=e=>{
+  if(!sp('tpl')) return; const t=e.target, D=DEF_TPL();
+  if(t.id==='btAdd'){ S.bodyTpls.push({ id:uid(), name:'새 템플릿', text:'' }); save(); renderTpl(); return; }
+  if(t.dataset.btdel!==undefined){ if(!confirm('이 템플릿을 삭제할까요?')) return; S.bodyTpls.splice(+t.dataset.btdel,1); save(); renderTpl(); return; }
+  if(t.dataset.treset){
+    const k=t.dataset.treset;
+    if(!confirm('기본값으로 되돌릴까요?')) return;
+    if(k==='vm') S.tpl.docShare[t.dataset.k]=D.docShare[t.dataset.k]; else S.tpl[k]=D[k];
+    save(); renderTpl(); toast('기본값으로 되돌렸습니다');
+  } else if(t.id==='tfAdd'){
+    const v=$('tfName').value.trim(); if(!v) return;
+    if(S.tfs.includes(v)){ toast('이미 있는 TF입니다'); return; }
+    S.tfs.push(v); save(); renderTpl();
+  } else if(t.dataset.tfdel!==undefined){
+    S.tfs.splice(+t.dataset.tfdel,1); save(); renderTpl();
+  }
+};
+
+/* export bars */
+document.addEventListener('click',e=>{ const b=e.target.closest('[data-exp]'); if(b) doExport(b.dataset.pid,b.dataset.exp); });
+
+/* RM 엑셀 업로드 */
+const RM_SAMPLE_H=['Task No','접수일자','분류','담당자','제목','내용','답변','처리 현황'];
+async function inflateRaw(u8){ const ds=new DecompressionStream('deflate-raw'); const w=ds.writable.getWriter(); w.write(u8); w.close(); return new Uint8Array(await new Response(ds.readable).arrayBuffer()); }
+async function unzip(buf){
+  const u=new Uint8Array(buf), dv=new DataView(buf), dec=new TextDecoder(); let e=u.length-22;
+  while(e>=0 && dv.getUint32(e,true)!==0x06054b50) e--; if(e<0) throw new Error('zip');
+  const n=dv.getUint16(e+10,true); let p=dv.getUint32(e+16,true); const files={};
+  for(let i=0;i<n;i++){
+    const method=dv.getUint16(p+10,true), csz=dv.getUint32(p+20,true), nl=dv.getUint16(p+28,true), el=dv.getUint16(p+30,true), cl=dv.getUint16(p+32,true), off=dv.getUint32(p+42,true);
+    const name=dec.decode(u.subarray(p+46,p+46+nl)); p+=46+nl+el+cl;
+    const start=off+30+dv.getUint16(off+26,true)+dv.getUint16(off+28,true), data=u.subarray(start,start+csz);
+    files[name]= method===0 ? data : method===8 ? await inflateRaw(data) : null;
+  }
+  return files;
+}
+function colIdx(ref){ let n=0; for(const ch of ref.replace(/[0-9]/g,'')) n=n*26+ch.charCodeAt(0)-64; return n-1; }
+function parseXlsx(files){
+  const dec=new TextDecoder(), xml=k=>new DOMParser().parseFromString(dec.decode(files[k]),'application/xml');
+  const ss=[]; if(files['xl/sharedStrings.xml']) xml('xl/sharedStrings.xml').querySelectorAll('si').forEach(si=>ss.push([...si.querySelectorAll('t')].filter(t=>!t.closest('rPh')).map(t=>t.textContent).join('')));
+  const sk=Object.keys(files).filter(k=>/^xl\/worksheets\/sheet\d+\.xml$/.test(k)).sort((a,b)=>parseInt(a.match(/\d+/)[0])-parseInt(b.match(/\d+/)[0]))[0];
+  if(!sk) throw new Error('sheet');
+  const rows=[];
+  xml(sk).querySelectorAll('row').forEach(r=>{
+    const arr=[]; r.querySelectorAll('c').forEach(c=>{
+      const i=colIdx(c.getAttribute('r')||''), t=c.getAttribute('t'), v=c.querySelector('v');
+      let val=''; if(t==='s') val=ss[+(v&&v.textContent)]||''; else if(t==='inlineStr') val=[...c.querySelectorAll('t')].map(x=>x.textContent).join(''); else if(v) val=v.textContent;
+      arr[i]=val;
+    });
+    rows.push(Array.from(arr,x=>x==null?'':x));
+  });
+  return rows;
+}
+function parseCsv(t){
+  t=t.replace(/^\uFEFF/,''); const rows=[]; let row=[],cur='',q=false;
+  for(let i=0;i<t.length;i++){ const ch=t[i];
+    if(q){ if(ch==='"'){ if(t[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=ch; }
+    else if(ch==='"') q=true; else if(ch===','){ row.push(cur); cur=''; }
+    else if(ch==='\n'||ch==='\r'){ if(ch==='\r'&&t[i+1]==='\n') i++; row.push(cur); rows.push(row); row=[]; cur=''; }
+    else cur+=ch; }
+  if(cur||row.length){ row.push(cur); rows.push(row); }
+  return rows;
+}
+function toDateStr(v){
+  v=String(v==null?'':v).trim(); if(!v) return '';
+  if(/^\d+(\.\d+)?$/.test(v) && +v>20000){ const d=new Date(Math.round((+v-25569)*86400000)); return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); }
+  const m=v.match(/(\d{2,4})\D+(\d{1,2})\D+(\d{1,2})/); if(!m) return '';
+  const y=m[1].length===2?2000+ +m[1]:+m[1]; return y+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[3]).padStart(2,'0');
+}
+function importTickets(rows){
+  const norm=h=>String(h||'').replace(/[\s#]/g,'').toLowerCase();
+  const ALI={no:['taskno','티켓no','티켓id','티켓번호','no','id'],date:['접수일자','배정일자','일자'],cat:['분류','카테고리'],owner:['담당자'],title:['제목'],content:['내용'],reply:['답변'],status:['처리현황','상태','현황'],inDate:['입력일자']};
+  const hr=rows.findIndex(r=>r&&r.some(x=>String(x||'').trim())); if(hr<0) return {err:'빈 파일입니다'};
+  const H=rows[hr].map(norm), idx={}; Object.keys(ALI).forEach(k=>{ const i=H.findIndex(h=>ALI[k].includes(h)); if(i>=0) idx[k]=i; });
+  if(idx.no===undefined||idx.title===undefined) return {err:'“Task No”, “제목” 열이 필요합니다. 샘플 양식을 확인하세요'};
+  const get=(r,k)=>idx[k]===undefined?'':String(r[idx[k]]==null?'':r[idx[k]]).trim();
+  let ok=0, dup=0, miss=0; const seen=new Set(S.tickets.map(t=>t.no)), now=Date.now();
+  rows.slice(hr+1).forEach((r,i)=>{
+    if(!r||!r.some(x=>String(x||'').trim())) return;
+    const no=normNo(get(r,'no')), title=get(r,'title');
+    if(!no||!title){ miss++; return; }
+    if(seen.has(no)){ dup++; return; }
+    seen.add(no);
+    const reply=get(r,'reply'); let st=get(r,'status'); st=({'배정':'진행','답변':'협업진행'})[st]||st; if(!REC.rm.statuses.includes(st)) st=reply?'완료':'접수';
+    const date=toDateStr(get(r,'date')), cat=get(r,'cat'), owner=get(r,'owner');
+    S.tickets.push({ id:uid(), created:now+i, no, date, inDate:toDateStr(get(r,'inDate'))||todayStr(), title, content:get(r,'content'), cat, owner, status:st, reply, replyAt:reply?now:null });
+    if(cat && !S.rmCats.includes(cat)) S.rmCats.push(cat); addPeople([owner]); ok++;
+  });
+  if(ok) save();
+  return {ok,dup,miss};
+}
+$('rmUp').onclick=()=>$('rmFile').click();
+$('rmFile').onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{
+    let rows;
+    if(/\.csv$/i.test(f.name)) rows=parseCsv(await f.text());
+    else if(/\.xlsx$/i.test(f.name)){ if(typeof DecompressionStream==='undefined'){ toast('이 브라우저는 엑셀 읽기를 지원하지 않습니다. CSV로 업로드하세요'); return; } rows=parseXlsx(await unzip(await f.arrayBuffer())); }
+    else { toast('.xlsx 또는 .csv 파일을 선택하세요'); return; }
+    const r=importTickets(rows);
+    if(r.err){ toast(r.err); return; }
+    renderRec(); toast(`${r.ok}건 등록`+((r.dup||r.miss)?` · ${r.dup+r.miss}건 건너뜀 (중복 ${r.dup}, 필수값 누락 ${r.miss})`:''));
+  }catch(err){ toast('파일을 읽을 수 없습니다. 샘플 양식을 확인하세요'); }
+};
+$('rmSample').onclick=()=>{
+  download(new Blob(buildXlsx('RM문의',RM_SAMPLE_H,[['#1001',todayStr(),'접속','홍길동','로그인 오류','접속이 되지 않습니다','','접수']]),{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),'RM문의_업로드_샘플_'+stamp()+'.xlsx');
+  toast('샘플 양식을 다운로드했습니다');
+};
+
+/* RM 공유 */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-rseg]'); if(!b||!SES) return;
+  const to=b.dataset.rseg; if(to===RMTAB) return;
+  if(rmTimer){ clearTimeout(rmTimer); rmTimer=null; if(rmEdit) rmCommit(false); }
+  RMTAB=to; navigate('rm');
+});
+$('v-rmshare').oninput=e=>{
+  const t=e.target, d=rmEdit; if(!d) return;
+  if(t.id==='mFinal'){ rmManual=true; d.final=t.value; $('mMod').classList.remove('hide'); return; }
+  if(t.id==='mNo') d.no=t.value;
+  else if(t.id==='mTitle') d.title=t.value;
+  else if(t.id==='mCat'){ if(t.value==='__new') return; d.cat=t.value; }
+  else if(t.id==='mOwner'){ if(t.value==='__new') return; d.owner=t.value; }
+  else if(t.id==='mContent') d.content=t.value;
+  else if(t.id==='mDate'){ d.date=t.value; updRmWd(); }
+  else return;
+  rmSyncOut(); rmQueue();
+};
+$('v-rmshare').onchange=e=>{
+  const t=e.target;
+  if(t.id==='mNo'&&rmEdit){ const v=normNo(t.value); t.value=v; rmEdit.no=v; rmSyncOut(); rmQueue(); return; }
+  if(t.id==='mCat'&&rmEdit){
+    if(t.value==='__new'){
+      const n=(prompt('새 분류 이름')||'').trim();
+      if(n){ if(!S.rmCats.includes(n)) S.rmCats.push(n); save(); rmEdit.cat=n; t.innerHTML=catOptions(n); rmSyncOut(); rmQueue(); }
+      else t.value=rmEdit.cat||'';
+    }
+    return;
+  }
+  if(t.id==='mOwner'&&rmEdit){
+    if(t.value==='__new'){
+      const n=(prompt('새 담당자 이름')||'').trim();
+      if(n){ addPeople([n]); save(); rmEdit.owner=n; t.innerHTML=ownerOptions(n); rmSyncOut(); rmQueue(); }
+      else t.value=rmEdit.owner||'';
+    }
+    return;
+  }
+  if(e.target.id==='mDate'&&rmEdit){ rmEdit.date=e.target.value; updRmWd(); rmSyncOut(); rmQueue(); } };
+$('v-rmshare').onclick=async e=>{
+  const b=e.target.closest('button'), d=rmEdit; if(!b||!d) return; const id=b.id;
+  if(id==='mClear'){ d.date=''; $('mDate').value=''; updRmWd(); rmSyncOut(); rmQueue(); }
+  else if(id==='mToday'){ d.date=todayStr(); $('mDate').value=d.date; updRmWd(); rmSyncOut(); rmQueue(); }
+  else if(id==='mFinalReset'){ rmManual=false; d.final=undefined; renderRmOut(); toast('틀대로 다시 만들었습니다'); }
+  else if(['shText','shImg','shShare'].includes(id)){
+    clearTimeout(rmTimer); const isNew=!d.id, t=rmCommit(true); if(!t) return;
+    const text=$('mFinal').value;
+    const ok=await doShare(id,{ text, note:isNew?'RM문의에 자동 저장됨':'자동 저장됨', canvas:()=>drawGeneric('RM',t.title,recMeta('rm',t),(t.content||'')+(t.reply?'\n\n[답변]\n'+t.reply:'')), name:safeName(t.no||t.title,t.date), title:t.title });
+    if(ok){ rmEdit=null; rmManual=false; renderRmShare(); }
+  }
+  else if(id==='mSave'){
+    clearTimeout(rmTimer); const t=rmCommit(true); if(!t) return;
+    rmEdit=null; rmManual=false; RMTAB='list'; FS.rm='전체'; $('rq').value=''; navigate('rm'); toast('RM문의에 저장되었습니다');
+    setTimeout(()=>{ const r=document.querySelector(`#rlist [data-rid="${t.id}"]`); if(r){ r.classList.add('flash'); r.scrollIntoView({block:'center'}); } },30);
+  }
+};
+
+/* RM / HL */
+$('rNew').onclick=()=>{ if(PG==='rm'){ rmEdit=null; rmManual=false; RMTAB='share'; navigate('rm'); } else openRecEdit(); }; $('rq').oninput=renderRec;
+$('rlist').onclick=e=>{
+  const h=e.target.closest('[data-sort]');
+  if(h){ const k=h.dataset.sort; if(RSORT.k===k) RSORT.d*=-1; else RSORT={k,d:k==='date'?-1:1}; renderRec(); return; }
+  const r=e.target.closest('[data-rid]'); if(r) openRecDetail(r.dataset.rid);
+};
+$('rSortSel').onchange=e=>{ const [k,d]=e.target.value.split(':'); RSORT={k,d:+d}; renderRec(); };
+$('v-recd').onclick=e=>{
+  const p=PG, R=REC[p], x=S[R.arr].find(r=>r.id===curRec); if(!x) return; const id=e.target.id;
+  const stb=e.target.closest('[data-st]'); if(stb){ x.status=stb.dataset.st; save(); renderRecDetail(); return; }
+  if(id==='rdBack'){ renderRec(); show('rec'); }
+  else if(id==='rdEdit') openRecEdit(curRec);
+  else if(id==='rdReplySave'){
+    const v=$('rdReply').value.trim();
+    if(!v){ toast('답변을 입력하세요'); $('rdReply').focus(); return; }
+    x.reply=v; x.replyAt=Date.now(); x.status='완료';
+    save(); renderRecDetail(); toast('답변을 저장했습니다');
+  }
+  else if(id==='rdReplyDel'){ if(confirm('답변을 삭제할까요?')){ x.reply=''; x.replyAt=null; save(); renderRecDetail(); toast('답변을 삭제했습니다'); } }
+  else if(id==='rdDel'){ if(confirm('삭제할까요?')){ if(rmEdit&&rmEdit.id===curRec) rmEdit=null; S[R.arr]=S[R.arr].filter(r=>r.id!==curRec); save(); renderRec(); show('rec'); toast('삭제되었습니다'); } }
+  else if(['shText','shImg','shShare'].includes(id)){
+    const tag = p==='rm' ? 'RM' : pageLabel('hl');
+    doShare(id,{ text:recText(p,x), canvas:()=>drawGeneric(tag,x.title,recMeta(p,x),(x.content||'')+(p==='rm'&&x.reply?'\n\n[답변]\n'+x.reply:'')), name:safeName(x.no||x.title,x.date), title:x.title });
+  }
+};
+$('v-recd').onchange=e=>{ if(e.target.id==='rdStatus'){ const x=S.tickets.find(r=>r.id===curRec); x.status=e.target.value; save(); renderRecDetail(); } };
+$('v-rece').onclick=e=>{
+  const rb=e.target.closest('[data-rst]');
+  if(rb){ const box=$('rStBtns'); box.dataset.cur=rb.dataset.rst; box.querySelectorAll('.stb').forEach(b=>{ b.className='stb'+(b===rb?' on '+statCls('rm',b.dataset.rst):''); }); return; }
+  if(e.target.id==='rSave') saveRec(); else if(e.target.id==='rCancel'){ if(recEdit.id){ renderRecDetail(); show('recd'); } else { renderRec(); show('rec'); } } };
+
+/* settings */
+$('secMenuHd').onclick=()=>{ SECMENU_OPEN=!SECMENU_OPEN; applySecMenu(); };
+$('noteBtn').onclick=()=>{ if(!isAdmin()) return; renderNotes(); show('note'); };
+$('noteBack').onclick=()=>{ renderSettings(); show('set'); };
+$('accOpen').onclick=()=>{ if(!sp('codes')||!ACCESS) return; ACCESS.mount($('accMount')); show('acc'); };
+$('accBack').onclick=()=>{ renderSettings(); show('set'); };
+$('mList').onchange=e=>{
+  if(!sp('menu')) return; const t=e.target, p=S.pages[+t.dataset.mi]; if(!p) return;
+  if(t.dataset.mk==='on') p.on=t.checked;
+  else if(t.dataset.mk==='label') p.label=t.value.trim()||PAGE_DEF[p.id].label;
+  else if(t.dataset.out){ p.out=p.out.filter(x=>x!==t.dataset.out); if(t.checked) p.out.push(t.dataset.out); p.out=ALL_OUT.filter(o=>p.out.includes(o)); }
+  save(); renderNav();
+};
+$('mList').onclick=e=>{
+  const b=e.target.closest('[data-mmove]'); if(!b||!sp('menu')) return;
+  const i=+b.dataset.mi, j=i+(+b.dataset.mmove); if(j<0||j>=S.pages.length) return;
+  [S.pages[i],S.pages[j]]=[S.pages[j],S.pages[i]]; save(); renderMenuSettings(); renderNav();
+};
+$('fmtList').onchange=e=>{ if(!sp('format')) return; const k=e.target.dataset.fmt; if(k){ S.fmt[k]=e.target.checked; save(); } };
+$('pAdd').onclick=()=>{ if(!sp('people')) return; const v=$('pName').value.trim(); if(!v) return; if(S.people.includes(v)){ toast('이미 등록된 담당자입니다'); return; } S.people.push(v); $('pName').value=''; save(); renderSettings(); };
+$('pName').onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); $('pAdd').click(); } };
+$('pList').onclick=e=>{ const b=e.target.closest('[data-pdel]'); if(b && sp('people')){ S.people.splice(+b.dataset.pdel,1); save(); renderSettings(); } };
+$('aAdd').onclick=()=>{
+  if(!isAdmin()) return;
+  const id=$('aId').value.trim();
+  if(!/^[A-Za-z0-9_.-]{3,20}$/.test(id)){ toast('아이디는 영문·숫자 3~20자로 입력하세요'); return; }
+  if(S.users.some(u=>u.id.toLowerCase()===id.toLowerCase())){ toast('이미 있는 아이디입니다'); return; }
+  const role=$('aRole').value;
+  S.users.push({ id, role, pwh:null, must:true, perms: role==='manager'?{...DEFAULT_PERMS}:{} });
+  $('aId').value=''; save(); renderAccounts(); toast('계정을 추가했습니다 (초기 비밀번호 1234)');
+};
+$('aList').onclick=e=>{
+  if(!isAdmin()) return;
+  const b=e.target.closest('[data-uact]'); if(!b) return;
+  const u=S.users.find(x=>x.id===b.dataset.uid); if(!u) return;
+  if(b.dataset.uact==='reset'){
+    if(confirm(`'${u.id}' 계정의 비밀번호를 1234로 초기화할까요?\n다음 로그인 시 변경해야 합니다.`)){ u.pwh=null; u.must=true; save(); renderAccounts(); toast('초기화되었습니다'); }
+  } else if(b.dataset.uact==='del'){
+    if(SES.acct && u.id===SES.acct.id) return;
+    if(u.role==='admin' && S.users.filter(x=>x.role==='admin').length<=1){ toast('마지막 관리자 계정은 삭제할 수 없습니다'); return; }
+    if(confirm(`'${u.id}' 계정을 삭제할까요?`)){ S.users=S.users.filter(x=>x!==u); save(); renderAccounts(); toast('삭제되었습니다'); }
+  }
+};
+$('aList').onchange=e=>{
+  if(!isAdmin()) return; const c=e.target; if(!c.dataset.perm) return;
+  const u=S.users.find(x=>x.id===c.dataset.uid); if(!u) return;
+  u.perms=u.perms||{}; u.perms[c.dataset.perm]=c.checked; save();
+};
+$('expBtn').onclick=()=>{
+  if(!sp('data')) return;
+  const out={ app:'task_manager', version:VERSION, exported:new Date().toISOString(), tasks:S.tasks, tickets:S.tickets, hl:S.hl, oh:S.oh, tfs:S.tfs, rmCats:S.rmCats, authors:S.authors, bodyTpls:S.bodyTpls, opts:S.opts, tpl:S.tpl, people:S.people, pages:S.pages, fmt:S.fmt, lastChanged:S.lastChanged||null };
+  if(isAdmin()){ out.users=S.users; out.rules=S.rules; out.codes=S.codes; }
+  download(new Blob([JSON.stringify(out,null,2)],{type:'application/json'}),'task_manager_data_'+stamp()+'.json');
+};
+$('impBtn').onclick=()=>{ if(sp('data')) $('impFile').click(); };
+$('impFile').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{
+      const d=JSON.parse(r.result); if(!d||!Array.isArray(d.tasks)) throw 0;
+      const fileChg = typeof d.lastChanged==='number' ? d.lastChanged : (d.exported ? Date.parse(d.exported)||null : null);
+      const newer = S.lastChanged && (!fileChg || S.lastChanged>fileChg);
+      if(!confirm('현재 업무 데이터를 불러온 파일 내용으로 바꿀까요?\n\n현재 데이터 마지막 변경: '+fmtDT(S.lastChanged)+'\n불러올 파일 마지막 변경: '+fmtDT(fileChg)+(newer?'\n\n※ 현재 저장된 데이터가 파일보다 최신입니다. 불러오면 최신 변경이 사라질 수 있습니다.':''))) return;
+      const keep={ users:S.users, rules:S.rules, codes:S.codes };
+      const nd = { tasks:d.tasks, tickets:d.tickets||[], hl:d.hl||[], oh:d.oh||[], docs:d.docs||[], tfs:d.tfs||[], rmCats:d.rmCats||[], authors:d.authors||[], bodyTpls:d.bodyTpls||[], lastChanged:fileChg, opts:d.opts, tpl:d.tpl, people:d.people||[], pages:d.pages, fmt:d.fmt, ...keep };
+      if(isAdmin() && Array.isArray(d.users) && d.users.some(u=>u.role==='admin') && confirm('파일에 계정·접근 코드 정보가 있습니다. 함께 바꿀까요?\n(취소하면 현재 계정·코드를 유지합니다)')){
+        nd.users=d.users; if(Array.isArray(d.rules)) nd.rules=d.rules; if(Array.isArray(d.codes)) nd.codes=d.codes;
+      }
+      S=normalize(nd);
+      if(SES&&SES.acct){ const me=S.users.find(u=>u.id===SES.acct.id); if(me) SES.acct=me; else { save(true); logout(); toast('계정이 변경되어 로그아웃되었습니다'); return; } }
+      save(true); gasPush(true); renderSettings(); renderNav(); toast('불러왔습니다 · 마지막 변경 '+fmtDT(S.lastChanged));
+    }catch(_){ toast('올바른 데이터 파일이 아닙니다'); } };
+  r.readAsText(f); e.target.value='';
+};
+$('resetBtn').onclick=()=>{ if(isAdmin() && confirm('Task·티켓·기록·담당자 데이터를 모두 삭제할까요? (계정·접근 코드는 유지) 되돌릴 수 없습니다.')){ S.tasks=[]; S.tickets=[]; S.hl=[]; S.people=[]; save(); renderSettings(); toast('초기화되었습니다'); } };
+
+/* ---------- RM 현황 보고 ---------- */
+let RP={ from:'', to:'', owner:'', cat:'', list:'open' };
+const STC={ '접수':'#d9822b','진행':'#2f7de1','협업진행':'#8b5cd6','완료':'#2e9e6a' };
+function rpData(){
+  const st=REC.rm.statuses;
+  const rows=S.tickets.filter(t=>{
+    const d=t.inDate||t.date||'';
+    if(RP.from && (!d||d<RP.from)) return false;
+    if(RP.to && (!d||d>RP.to)) return false;
+    if(RP.owner && (t.owner||'')!==(RP.owner==='__none'?'':RP.owner)) return false;
+    if(RP.cat && (t.cat||'')!==(RP.cat==='__none'?'':RP.cat)) return false;
+    return true;
+  });
+  const cnt=a=>{ const o={}; st.forEach(k=>o[k]=a.filter(x=>x.status===k).length); return o; };
+  const grp=key=>{ const m=new Map(); rows.forEach(t=>{ const k=t[key]||'미지정'; if(!m.has(k)) m.set(k,[]); m.get(k).push(t); }); return [...m].map(([k,a])=>({k,n:a.length,c:cnt(a)})).sort((a,b)=>(a.k==='미지정')-(b.k==='미지정')||b.n-a.n||a.k.localeCompare(b.k,'ko')); };
+  const done=rows.filter(t=>t.status==='완료').length;
+  const ord=t=>st.indexOf(t.status);
+  const base=RP.list==='all'?rows.slice():rows.filter(t=>t.status!=='완료');
+  const list=base.sort((a,b)=>ord(a)-ord(b)||String(a.inDate||a.date||'').localeCompare(String(b.inDate||b.date||''))||String(a.no).localeCompare(String(b.no),'ko',{numeric:true}));
+  const per=(RP.from||RP.to)?((RP.from||'처음')+' ~ '+(RP.to||'현재')):'전체 기간';
+  const flt=[RP.owner?'담당자 '+(RP.owner==='__none'?'미지정':RP.owner):'',RP.cat?'분류 '+(RP.cat==='__none'?'미지정':RP.cat):''].filter(Boolean);
+  return { st, total:rows.length, c:cnt(rows), done, rate:rows.length?Math.round(done/rows.length*100):0, byOwner:grp('owner'), byCat:grp('cat'), list, listAll:RP.list==='all', per, flt };
+}
+function rpText(d){
+  const cs=c=>d.st.filter(k=>c[k]).map(k=>k+' '+c[k]).join(' · ')||'-';
+  const L=['[RM 현황 보고] '+fmtText(todayStr()), '기간: '+d.per+(d.flt.length?' / '+d.flt.join(' / '):''), ''];
+  L.push('■ 전체 '+d.total+'건 (완료율 '+d.rate+'%)');
+  L.push(d.st.map(k=>k+' '+d.c[k]).join(' / '));
+  if(d.total){
+    L.push('','■ 담당자별'); d.byOwner.forEach(g=>L.push('- '+g.k+': 총 '+g.n+'건 ('+cs(g.c)+')'));
+    L.push('','■ 분류별'); d.byCat.forEach(g=>L.push('- '+g.k+': 총 '+g.n+'건 ('+cs(g.c)+')'));
+  }
+  L.push('','■ '+(d.listAll?'전체 목록':'미완료 목록')+' ('+d.list.length+'건)');
+  if(!d.list.length) L.push('- 해당 항목 없음');
+  d.list.forEach(t=>L.push('- '+t.no+' '+t.title+' ['+(t.owner||'미지정')+' · '+t.status+']'));
+  return L.join('\n');
+}
+function rpDraw(d,H){
+  const F=FONT, W=760, pad=32, inner=W-pad*2, k=2;
+  const c=document.createElement('canvas'); c.width=W*k; c.height=(H||4000)*k;
+  const x=c.getContext('2d'); x.scale(k,k); x.textBaseline='alphabetic';
+  if(H){ x.fillStyle='#f4f6fa'; x.fillRect(0,0,W,H); x.fillStyle='#fff'; rr(x,12,12,W-24,H-24,18); x.fill(); x.strokeStyle='#e2e6ee'; x.lineWidth=1; x.stroke(); }
+  const fit=(t,mw)=>{ t=String(t); if(x.measureText(t).width<=mw) return t; while(t.length>1 && x.measureText(t+'…').width>mw) t=t.slice(0,-1); return t+'…'; };
+  let y=pad+8;
+  x.font='700 14px '+F; x.fillStyle='#3b5bdb'; x.fillText('RM 현황 보고',pad,y+14); y+=14+10;
+  x.font='700 24px '+F; x.fillStyle='#1c2333'; x.fillText(fmtText(todayStr())+' 기준',pad,y+24); y+=24+10;
+  x.font='500 13px '+F; x.fillStyle='#6b7488'; x.fillText(fit('기간: '+d.per+(d.flt.length?'  ·  '+d.flt.join(' · '):''),inner),pad,y+13); y+=13+18;
+  // total + rate
+  x.font='700 20px '+F; x.fillStyle='#1c2333'; x.fillText('전체 '+d.total+'건',pad,y+18);
+  x.font='600 14px '+F; x.fillStyle='#2e9e6a'; x.textAlign='right'; x.fillText('완료율 '+d.rate+'%',pad+inner,y+18); x.textAlign='left'; y+=18+10;
+  x.fillStyle='#e8ebf2'; rr(x,pad,y,inner,10,5); x.fill();
+  if(d.rate>0){ x.fillStyle='#2e9e6a'; rr(x,pad,y,Math.max(10,inner*d.rate/100),10,5); x.fill(); } y+=10+16;
+  // tiles
+  const n=d.st.length, gap=10, tw=(inner-gap*(n-1))/n;
+  d.st.forEach((s,i)=>{ const tx=pad+i*(tw+gap); x.fillStyle='#f4f6fa'; rr(x,tx,y,tw,64,12); x.fill(); x.fillStyle=STC[s]||'#6b7488'; rr(x,tx,y+10,4,44,2); x.fill();
+    x.textAlign='center'; x.font='700 24px '+F; x.fillStyle='#1c2333'; x.fillText(String(d.c[s]),tx+tw/2,y+32); x.font='600 12px '+F; x.fillStyle='#6b7488'; x.fillText(s,tx+tw/2,y+52); x.textAlign='left'; });
+  y+=64+22;
+  const bars=(title,gs)=>{
+    if(!gs.length) return;
+    x.font='700 16px '+F; x.fillStyle='#1c2333'; x.fillText(title,pad,y+14); y+=14+12;
+    const mx=Math.max(...gs.map(g=>g.n)), bx=pad+110, bw=inner-110-44;
+    gs.slice(0,12).forEach(g=>{
+      x.font='600 14px '+F; x.fillStyle='#1c2333'; x.fillText(fit(g.k,100),pad,y+14);
+      let cx=bx; const tot=bw*g.n/mx;
+      d.st.forEach(s=>{ if(!g.c[s]) return; const w=tot*g.c[s]/g.n; x.fillStyle=STC[s]||'#aab2c5'; x.fillRect(cx,y+2,w,16); cx+=w; });
+      x.font='700 14px '+F; x.fillStyle='#1c2333'; x.textAlign='right'; x.fillText(String(g.n),pad+inner,y+15); x.textAlign='left'; y+=28;
+    });
+    if(gs.length>12){ x.font='500 12px '+F; x.fillStyle='#6b7488'; x.fillText('외 '+(gs.length-12)+'개',pad,y+10); y+=20; }
+    y+=12;
+  };
+  if(d.total){ bars('담당자별',d.byOwner); bars('분류별',d.byCat); }
+  x.font='700 16px '+F; x.fillStyle='#1c2333'; x.fillText((d.listAll?'전체 목록':'미완료 목록')+' ('+d.list.length+'건)',pad,y+14); y+=14+10;
+  if(!d.list.length){ x.font='500 14px '+F; x.fillStyle='#6b7488'; x.fillText('해당 항목 없음',pad,y+18); y+=30; }
+  d.list.slice(0,15).forEach(t=>{
+    x.strokeStyle='#eef0f4'; x.beginPath(); x.moveTo(pad,y); x.lineTo(pad+inner,y); x.stroke();
+    x.font='700 13px '+F; x.fillStyle='#3b5bdb'; x.fillText(fit(t.no,80),pad,y+20);
+    const tag=(t.owner||'미지정')+' · '+t.status; x.font='600 12px '+F; const tw2=x.measureText(tag).width;
+    x.fillStyle=STC[t.status]||'#6b7488'; x.textAlign='right'; x.fillText(tag,pad+inner,y+20); x.textAlign='left';
+    x.font='500 14px '+F; x.fillStyle='#1c2333'; x.fillText(fit(t.title,inner-88-tw2-12),pad+88,y+20); y+=30;
+  });
+  if(d.list.length>15){ x.font='500 12px '+F; x.fillStyle='#6b7488'; x.fillText('외 '+(d.list.length-15)+'건',pad,y+14); y+=22; }
+  y+=6; x.font='400 11px '+F; x.fillStyle='#aab2c5'; x.textAlign='right'; x.fillText('Task Manager v'+VERSION,pad+inner,y+10); x.textAlign='left'; y+=10;
+  return { c, y };
+}
+function rpCanvas(d){ const m=rpDraw(d,null); return rpDraw(d,m.y+pad2()).c; }
+function pad2(){ return 32; }
+function renderRmReport(){
+  renderRmSeg('rep'); renderTabs();
+  const owners=[...new Set(S.tickets.map(t=>t.owner).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko'));
+  const opt=(v,l,sel)=>`<option value="${esc(v)}" ${sel===v?'selected':''}>${esc(l)}</option>`;
+  $('rpForm').innerHTML=`<h2>현황 보고 조건</h2>
+    <div class="two" style="margin-bottom:12px"><div class="field" style="margin:0"><label>시작일 (접수일자 기준)</label><input type="date" id="rpFrom" value="${esc(RP.from)}"></div>
+      <div class="field" style="margin:0"><label>종료일</label><input type="date" id="rpTo" value="${esc(RP.to)}"></div></div>
+    <div class="two" style="margin-bottom:12px"><div class="field" style="margin:0"><label>담당자</label><select id="rpOwner">${opt('','전체',RP.owner)}${owners.map(o=>opt(o,o,RP.owner)).join('')}${opt('__none','미지정',RP.owner)}</select></div>
+      <div class="field" style="margin:0"><label>분류</label><select id="rpCat">${opt('','전체',RP.cat)}${catNames().map(o=>opt(o,o,RP.cat)).join('')}${opt('__none','미지정',RP.cat)}</select></div></div>
+    <div class="field" style="margin:0"><label>목록 표시</label><select id="rpList">${opt('open','미완료만',RP.list)}${opt('all','전체',RP.list)}</select></div>`;
+  $('rpOut').innerHTML=`<h2>보고 자료</h2>
+    <div id="rpCv" style="border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px"></div>
+    <h2 style="margin-top:4px">공유 텍스트</h2>
+    <textarea class="tx" id="rpText" rows="14"></textarea>
+    <div class="actions" style="margin-top:10px"><button type="button" class="btn" id="rpReset">틀대로 다시 만들기</button></div>
+    ${shareBarHtml()}`;
+  rpRefresh();
+}
+function rpRefresh(){
+  const d=rpData(), cv=rpCanvas(d); cv.style.cssText='display:block;width:100%;height:auto';
+  $('rpCv').innerHTML=''; $('rpCv').appendChild(cv); $('rpText').value=rpText(d);
+}
+$('v-rmrep').addEventListener('change',e=>{
+  const id=e.target.id; if(!['rpFrom','rpTo','rpOwner','rpCat','rpList'].includes(id)) return;
+  RP.from=$('rpFrom').value; RP.to=$('rpTo').value; RP.owner=$('rpOwner').value; RP.cat=$('rpCat').value; RP.list=$('rpList').value; rpRefresh();
+});
+$('v-rmrep').addEventListener('click',async e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.id==='rpReset'){ rpRefresh(); return; }
+  if(!['shText','shImg','shShare'].includes(b.id)) return;
+  const d=rpData();
+  doShare(b.id,{ text:$('rpText').value, canvas:()=>rpCanvas(d), name:'rm_report_'+stamp()+'.png', title:'RM 현황 보고' });
+});
+
+/* ---------- Google Apps Script 연동 (웹앱으로 배포했을 때만 동작) ---------- */
+const GAS = (typeof google!=='undefined' && google.script && google.script.run) ? google.script.run : null;
+const SYNC = { last:null, busy:false, err:'', timer:null, pulled:0 };
+function syncUI(){
+  const box=$('syncBox'); if(!box) return; box.classList.toggle('hide',!GAS); if(!GAS) return;
+  $('syncStat').textContent='구글 시트 연동: '+(SYNC.err?'오류 – '+SYNC.err:SYNC.busy?'동기화 중…':SYNC.last?'동기화됨 ('+fmtDT(SYNC.last)+')':'대기 중');
+}
+function gasPush(force){
+  if(!GAS) return; clearTimeout(SYNC.timer);
+  SYNC.timer=setTimeout(()=>{
+    SYNC.busy=true; syncUI();
+    GAS.withSuccessHandler(r=>{ SYNC.busy=false;
+      if(r&&r.ok){ SYNC.last=Date.now(); SYNC.err=''; }
+      else if(r&&r.conflict){ gasPull(false); }
+      else SYNC.err=(r&&r.error)||'저장 실패';
+      syncUI();
+    }).withFailureHandler(er=>{ SYNC.busy=false; SYNC.err=String((er&&er.message)||er); syncUI(); }).gasSave(JSON.stringify(S), S.lastChanged||0, force===true);
+  }, force===true?0:1500);
+}
+function gasPull(quiet){
+  if(!GAS) return; SYNC.busy=true; syncUI();
+  GAS.withSuccessHandler(r=>{
+    SYNC.busy=false; SYNC.err='';
+    let sv=null; try{ sv=r?JSON.parse(r):null; }catch(e){ sv=null; }
+    const sl=sv&&sv.lastChanged||0, ll=S.lastChanged||0;
+    if(sv && sl>ll){
+      S=normalize(sv); try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){}
+      if(SES && PG && PG!=='set'){ try{ rmEdit=null; navigate(PG); }catch(e){} } else if(PG==='set'){ try{ renderSettings(); }catch(e){} }
+      renderNav(); if(!quiet) toast('구글 시트의 최신 데이터를 불러왔습니다');
+      SYNC.last=Date.now();
+    } else if(ll>sl){ gasPush(true); }
+    else SYNC.last=Date.now();
+    syncUI();
+  }).withFailureHandler(er=>{ SYNC.busy=false; SYNC.err=String((er&&er.message)||er); syncUI(); }).gasLoad();
+}
+if($('syncNow')) $('syncNow').onclick=()=>{ gasPull(false); };
+if(GAS){
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && Date.now()-SYNC.pulled>20000){ SYNC.pulled=Date.now(); gasPull(true); } });
+}
+
+/* boot */
+(function(){
+  if(!ACCESS){ $('gErr').textContent='접근 모듈을 불러오지 못했습니다.'; return; }
+  let c=null,a=null; try{ c=sessionStorage.getItem('tm_code'); a=sessionStorage.getItem('tm_acct'); }catch(e){}
+  const u=a&&S.users.find(x=>x.id===a);
+  if(c && enterWithCode(c)){ if(u) applyAcct(u); startApp(); }
+  else if(u){ SES={ pages:[], settings:null, acct:null, label:'', code:'' }; applyAcct(u); startApp(); }
+  else { applyAuthUI(); show('gate'); }
+})();
+if(GAS){ SYNC.pulled=Date.now(); gasPull(true); }
+</script>
+</body>
+</html>
