@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VM Task Manager v3.2</title>
+<title>VM Task Manager v3.3</title>
 <style>
 :root{
   --bg:#f4f6fa;--surface:#fff;--ink:#1c2333;--muted:#6b7488;--line:#e2e6ee;
@@ -466,187 +466,9 @@ textarea.tx:focus{outline:2px solid var(--brand-l);border-color:var(--brand)}
 <div class="toast" id="toast"></div>
 
 <script>
-const VERSION = '3.2';
-/* ===== 배포 설정: Google Apps Script 웹앱 URL(…/exec)을 아래 따옴표 안에 한 번만 입력하고 배포하세요. 비워두면 브라우저 저장만 사용합니다. ===== */
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwIu_3_D3uXph2-Mtvu_UYwLGKUGKYKDwpvS_VRQ0kbk2XuhC7A7pN9CsuykiQE2Q/exec';
-const GAS_KEY = '';   // 서버에 ACCESS_KEY를 설정한 경우에만 같은 값 입력 (공개 저장소에서는 소스에 노출됨)
-const RELEASES = [
-  { v:'3.2', date:'2026-11-03', items:[
-    'GitHub(웹)에서 실행 + Google Apps Script 저장 구조를 모든 기기(PC·모바일)에서 안정적으로 동작하도록 보강',
-    '자동 동기화: 화면 복귀·네트워크 재연결·1분 주기로 최신 데이터 확인, 저장 실패 시 15초 후 자동 재시도 (오프라인에서는 기기에 저장 후 연결되면 반영)',
-    '입력 중에는 화면이 갱신되지 않도록 보호하고, 앱을 닫거나 백그라운드로 가는 순간 저장 대기 중인 변경을 즉시 전송',
-    '설정 > 데이터 저장: 연동 미설정 시 안내 표시(GAS_URL 입력 방법), 저장 대기/재시도 상태 표시'
-  ]},
-  { v:'3.1', date:'2026-11-03', items:[
-    '저장 서버 연동 방식 변경: 기기마다 설정하지 않고 index.html 안의 GAS_URL에 Google Apps Script 웹앱 URL을 한 번 삽입해 배포하면 모든 기기가 자동으로 같은 구글 시트를 사용',
-    '설정 화면의 기기별 연동 입력(URL/키/연결/해제)은 제거, 연동 상태 표시와 “지금 동기화”만 유지',
-    '데이터 보호: 접속 후 첫 동기화(불러오기)가 끝나기 전에는 시트로 저장하지 않아 새 기기가 시트 데이터를 덮어쓰지 않음',
-    'GAS_URL이 비어 있으면 기존처럼 브라우저 저장만 사용 / 구글 웹앱 주소로 접속하는 방식도 그대로 지원',
-    'Apps Script 서버(Code.gs): ACCESS_KEY는 선택(설정했을 때만 검사), 설치 안내 갱신'
-  ]},
-  { v:'3.0', date:'2026-11-03', items:[
-    'RM > “현황 보고” 탭 추가: RM문의에 저장된 데이터를 기반으로 현황 보고 자료 자동 생성 (전체 건수·완료율, 상태별 건수, 담당자별·분류별 현황, 미완료 목록)',
-    '현황 보고 조건: 기간(접수일자 기준)·담당자·분류 선택, 목록은 미완료만/전체 선택',
-    '현황 보고 공유: 텍스트 복사(수정 가능) / 이미지 저장 / 공유 (이미지 포함 옵션 동일)',
-    'Google Apps Script 연동 세팅: 웹앱으로 배포하면 구글 시트에 데이터가 저장·동기화되어 여러 기기/사용자가 같은 데이터를 사용 (설정 > 데이터 저장에서 상태 확인·지금 동기화). 일반 브라우저/GitHub에서는 기존처럼 브라우저 저장소 사용',
-    'Apps Script 설치 파일(Code.gs, appsscript.json, 설치 안내) 제공'
-  ]},
-  { v:'2.9', date:'2026-11-03', items:[
-    'RM문의: 답변을 저장하면 현황이 “완료”로 변경되어 완료로 분리 (엑셀 업로드 시 답변이 있고 현황이 비어 있는 행도 “완료”)',
-    '설정: “페이지 메뉴 · 출력 유형” 박스를 접기/펼치기로 변경 (기본값 접힘, 제목을 눌러 펼침)',
-    '설정 > 데이터 저장: 마지막 변경 데이터 시간 표시. 불러오기 전 확인창에 현재 데이터와 파일의 마지막 변경 시각을 함께 보여주고, 현재 데이터가 더 최신이면 경고, 불러온 뒤에도 파일의 마지막 변경 시각을 유지해 표시',
-    '데이터 내보내기/불러오기 보완: OH 기록, RM 분류 목록, 작성자 목록, 내용 템플릿이 누락되던 문제 수정 (이전 파일도 그대로 불러올 수 있음)',
-    'GitHub 등록용 세팅 파일 제공 (index.html, README, CHANGELOG, .gitignore, GitHub Pages 배포 워크플로우)'
-  ]},
-  { v:'2.8', date:'2026-11-03', items:[
-    'RM 공유: “티켓ID” → “Task No” 텍스트 수정, 담당자 기본값은 “선택 안 함”, 접수일자는 오늘 날짜가 기본 입력 (옵션 유지 – “지우기”로 미선택 가능)',
-    'RM문의: 검색 안내 문구와 목록 열·상세·수정·내보내기·샘플 양식의 “티켓번호/티켓ID/티켓No” 표기를 “Task No”로 통일',
-    'RM 현황 이름 조정: 접수 → 접수 / 배정 → 진행 / 답변 → 협업진행 / 완료 → 완료 (기존 데이터는 자동 변환, 업로드 시 이전 이름도 인식, 답변을 저장하면 “협업진행”으로 변경)',
-    'RM 현황 선택 방식 변경: 상세·수정 화면의 현황 선택을 목록(드롭다운)에서 버튼 선택으로 변경 (접수 / 진행 / 협업진행 / 완료)'
-  ]},
-  { v:'2.71', date:'2026-11-02', items:[
-    'RM 공유: 접수일자를 옵션으로 변경 – 기본은 미선택이며, 미선택 상태에서도 공유 텍스트 복사·공유·저장이 가능 (배정일자 줄은 자동 생략, “지우기” 버튼으로 선택 해제)',
-    'RM문의 목록·상세·내보내기: 접수일자가 없는 티켓은 “-”로 표시'
-  ]},
-  { v:'2.7', date:'2026-11-02', items:[
-    'VM 공유 텍스트 템플릿 형식 변경: 작성자·일자를 내용 아래 맨 하단(footer)으로 이동 (기존 기본 템플릿은 자동 갱신, 직접 수정한 템플릿은 유지)',
-    'RM문의: 등록 버튼 “새 문의” → “문의 등록”',
-    'OH 페이지 개편: VM과 같은 형식의 “공유 / Task” 탭 구성 (기존 수치 통계 요약은 제거)',
-    'OH 공유 탭: 머리말(서신발송) / 일자 / 발송대상 / 발송문구(제목·본문내용·첨부파일) 입력, 공유 텍스트 실시간 생성, 공유 시 자동 저장, 저장 → Task',
-    'OH Task 탭: 머리말(서신발송 / 인터뷰어 / 인터뷰이) 구분, 일자·발송대상(인터뷰는 대상자)·제목·본문내용·파일 첨부 입력, 목록 정렬·구분·머리말 필터, 내보내기, 설정에서 OH 공유 템플릿 수정',
-    '첨부파일은 파일당 1MB까지 앱에 저장되어 다시 내려받을 수 있고, 1MB를 넘는 파일은 파일명만 기록됨'
-  ]},
-  { v:'2.6', date:'2026-11-02', items:[
-    '설정: 설정 화면 좌측 상단에 “← 일반 페이지로” 버튼 추가 (접근 코드 없이 계정으로만 로그인한 경우에는 “← 접근 코드 입력으로”로 표시되어 코드 입력 화면으로 이동)',
-    '설정: admin 계정으로 로그인하면 모든 페이지 메뉴(VM·RM·OH·HL)가 활성화되어 접근 코드 없이도 전체 페이지 이용 가능 (메뉴 설정에서 숨김 처리한 페이지 포함)'
-  ]},
-  { v:'2.55', date:'2026-11-01', items:[
-    'RM문의 목록 글자 크기 비율 조정: 제목을 가장 크게(16px) 강조하고, 티켓ID·일자·구분·담당자는 12.5px로 통일, 상태 배지·답변 표시·내용 미리보기는 11.5~12px로 축소하여 제목 중심의 위계로 정리'
-  ]},
-  { v:'2.54', date:'2026-11-01', items:[
-    'RM문의 목록: 티켓ID를 색상 강조 (굵은 브랜드 색상 + 연한 배경 칩)'
-  ]},
-  { v:'2.53', date:'2026-11-01', items:[
-    'VM 공유: 작성자를 내용 하단으로 이동 (일자는 단독 소형 입력, TF 선택은 계속 맨 하단)',
-    'VM Task: 작성자 표시 – Task 직접 작성/수정 화면에 작성자 선택 추가, Task 카드에는 작성자를 항상 표시 (없으면 “-”)'
-  ]},
-  { v:'2.52', date:'2026-11-01', items:[
-    'RM 공유: 공유 텍스트를 실시간 반영 – 티켓 ID·제목·내용·담당자·분류 중 하나라도 입력하면 즉시 텍스트가 만들어지고 이후 입력 내용이 바로 반영됨 (접수일자는 선택 전에는 배정일자 줄을 생략, 선택하면 줄이 추가됨)'
-  ]},
-  { v:'2.51', date:'2026-11-01', items:[
-    'VM Task 카드: 작성자를 내용 하단으로 이동'
-  ]},
-  { v:'2.5', date:'2026-11-01', items:[
-    'VM Task 목록 노출 방식 변경: 일자 / 구분(공유·Task) / 제목 / 작성자 (구분 열 클릭 정렬 지원)',
-    'VM: 공유 탭에서 넘어온 게시물은 현황(배정/진행/완료)을 표시하지 않음 – 목록, 카드 상세, 상태 탭 집계, 내보내기에서 제외. 현황은 Task에서 직접 만든 항목에만 적용 (목록에서는 제목 앞 작은 배지로 표시)',
-    'RM문의 목록 노출 방식 변경: 티켓ID / 일자 / 구분(분류) / 제목 / 담당자 (현황은 제목 앞 배지, 답변이 있으면 “답변” 표시)',
-    'RM문의 UI 개선: 긴 분류·담당자는 줄임 표시, 목록 줄 간격·배지 정리, 모바일에서도 같은 순서로 표시'
-  ]},
-  { v:'2.4', date:'2026-11-01', items:[
-    'VM 공유: 작성자를 선택 메뉴로 변경 – “+ 새 작성자 추가…”로 이름을 등록하고 선택 (기본값은 비어 있음, 선택은 필수)',
-    'VM 공유 UI: 작성자와 일자를 한 줄에 나란히 배치',
-    'VM Task: 내보내기 버튼을 목록 하단으로 이동',
-    'VM Task: 목록 정렬 추가 (열 제목 클릭 또는 정렬 선택: 일자/제목/작성자/카테고리/현황) 및 구분 필터(전체 / 공유 / Task) – 공유 탭에서 저장한 항목과 Task에서 직접 만든 항목을 구분해 표시',
-    'VM 공유: 내용 템플릿 기능 – 내용 입력란에서 템플릿을 불러오거나 현재 내용을 템플릿으로 저장, 설정 > 템플릿 수정에서 추가·수정·삭제'
-  ]},
-  { v:'2.3', date:'2026-11-01', items:[
-    'RM문의: 엑셀(.xlsx)·CSV 업로드 기능 추가 – 샘플 양식 파일 다운로드 제공 (열: 티켓No / 접수일자 / 분류 / 담당자 / 제목 / 내용 / 답변 / 처리 현황). 티켓No 중복·필수값(티켓No, 제목) 누락 행은 건너뛰고 결과를 안내',
-    'RM문의: 내보내기 버튼을 목록 하단으로 이동 (업로드·샘플 양식 버튼과 같은 줄)',
-    '텍스트 수정: “+ 새 티켓” → “+ 새 문의”',
-    'RM 공유: 접수일자를 선택하면 공유 텍스트 박스에 템플릿이 활성화됨 (선택 전에는 비어 있고, 공유·저장 시 접수일자 필요)',
-    'RM 공유: 분류 추가 등록 – 선택 메뉴에서 “+ 새 분류 추가…”로 바로 등록',
-    'RM 공유 UI: 담당자와 분류를 한 줄에 나란히 배치, 접수일자는 접기/펼치기 영역으로 이동 (“오늘” 버튼 포함)',
-    'RM 공유 텍스트: 현황이 “접수”이면 “현황: 접수” 줄을 자동 생략 (답변·완료 등 다른 현황은 표시)'
-  ]},
-  { v:'2.2', date:'2026-11-01', items:[
-    'RM 위치 변경: 접수일자를 작성 화면 맨 하단으로 이동 (티켓 ID → 제목 → 내용 → 담당자 → 분류 → 접수일자)',
-    'RM 공유/저장 후 입력창 초기화: 텍스트 복사·이미지 저장·공유 후 또는 “저장 → RM문의” 후 작성 화면이 빈 새 티켓으로 초기화 (저장은 이미 완료된 상태)',
-    'RM 텍스트 수정: 탭 이름 “티켓” → “RM문의”',
-    'RM문의 목록을 게시판 형식으로 변경: 티켓No / 담당자 / 상태 / 분류 / 제목 / 일자. 열 제목 클릭 또는 정렬 선택으로 오름/내림차순 정렬, 상태 탭으로 구분 표시',
-    'RM 분류 항목 추가: 작성·수정 화면에서 입력/선택(기존 분류 목록 제안), 목록·상세·내보내기·검색에 반영 ({분류} 템플릿 항목 추가)',
-    'RM 티켓 ID: 숫자만 입력하면 앞에 #을 자동으로 붙임 (예: 123 → #123)'
-  ]},
-  { v:'2.1', date:'2026-11-01', items:[
-    'RM 위치 변경: 담당자 입력을 작성 화면 맨 하단(내용 아래)으로 이동',
-    'RM 기능: 담당자 선택 메뉴 구성 – 등록된 담당자 목록에서 선택하고, “+ 새 담당자 추가…”로 바로 등록 (본인으로 기본 선택, 선택 안 함 가능)'
-  ]},
-  { v:'2.0', date:'2026-11-01', items:[
-    'RM 텍스트 수정: 공유 화면의 “입력일자 … (자동)” 문구 삭제 (입력일자는 내부에서 자동 기록)',
-    'RM 기능 추가: 담당자 입력 – 본인 이름을 입력하며, 한 번 등록하면 기억되어 새 티켓에 자동으로 채워짐',
-    'RM 공유 텍스트: 첫 줄을 “[RM] 티켓ID”로 변경하고 “접수일자”를 “배정일자”로 수정, 담당자·제목·현황 순으로 재배열 ({배정일자} 항목 추가)',
-    '기존 기본 RM 템플릿은 새 기본값으로 자동 갱신 (직접 수정한 템플릿은 유지)'
-  ]},
-  { v:'1.9', date:'2026-11-01', items:[
-    'VM 기능 추가: 작성자(필수) 입력 – 본인 이름을 한 번 등록하면 이 브라우저에 기억되어 새 글에 자동으로 채워짐. 공유 텍스트({작성자}), Task 목록·카드, 내보내기, R&R 이미지에 반영',
-    'VM 공유: 텍스트 공유가 기본, 이미지는 “이미지 포함(옵션)” 체크 시에만 이미지 저장·이미지 첨부 공유 제공',
-    'VM 공유: 텍스트 복사 / 이미지 저장 / 공유를 누르면 Task에 자동 저장(작성자·제목 필수)',
-    'VM UI: 저장 버튼을 공유 버튼 줄의 우측에 분리 배치 (일자 소형·TF 최하단 유지)',
-    'RM 페이지: 공유 화면이 첫 페이지 (공유 | 티켓 소분류). 티켓 ID는 직접 입력(필수·중복 불가), 제목, 내용 입력',
-    'RM: 입력일자는 자동 생성, 접수일자는 별도 선택 (소형 일자 입력). 입력하면 자동 저장되고, 공유 후 “저장 → 티켓”으로 목록 이동',
-    'RM: 저장된 티켓 상세에서 답변 입력/저장/삭제 (답변 저장 시 현황이 “답변”으로 변경). 공유 텍스트에 {답변} 포함',
-    '템플릿: {작성자}, {티켓ID}, {접수일자}, {입력일자}, {답변} 항목 추가 (기존 기본 템플릿은 자동으로 새 기본값으로 갱신, 직접 수정한 템플릿은 유지)',
-    '내보내기: VM에 작성자 열, RM에 티켓ID·접수일자·입력일자·답변 열 추가'
-  ]},
-  { v:'1.8', date:'2026-11-01', items:[
-    '텍스트 수정: 공유 작성 화면의 “새 구성안” 제목 삭제',
-    '머리말 순서 변경: 보고 / 제안 / 기획 (Task 카테고리·템플릿 설정 순서도 동일, 새 작성 시 기본 머리말은 “보고”)',
-    'UI: 일자 입력을 작은 크기로 축소, 카테고리(TF) 선택은 작성 화면 맨 하단으로 이동',
-    '기능: 카테고리(TF) 선택을 옵션으로 변경 – 선택 입력이며, 설정 > 템플릿 수정에서 표시 여부를 끌 수 있음. TF가 비어 있으면 공유 텍스트에서 TF 줄을 자동 생략'
-  ]},
-  { v:'1.7', date:'2026-11-01', items:[
-    'VM 소카테고리를 “공유 / Task / R&R” 3개로 구성 – R&R을 머리말에서 분리해 독립 탭으로 이동',
-    'R&R 탭: Work flow + 업무/담당자/Follow-up 입력, 아래에 공유 텍스트·이미지 공유, 저장하면 Task로 이동',
-    '공유·R&R 탭은 각각 작성 중인 내용을 따로 보관 (탭을 옮겨도 유지)',
-    '버전 관리 지침 변경: [업데이트]는 0.1 단위로 올리고 0.01 자리는 버림'
-  ]},
-  { v:'1.61', date:'2026-11-01', items:[
-    'VM 소카테고리 “구성안” → “공유”로 변경',
-    '공유: “새 구성안” 입력 화면을 메인으로 이동, 바로 아래에 공유 템플릿(완성 텍스트)을 연결해 입력과 동시에 자동 완성 → 복사·이미지·공유를 바로 실행',
-    '공유에서 저장하면 Task 페이지로 이동해 Task로 등록(현황 배정) – 이전에 저장한 구성안은 자동으로 Task로 옮겨짐',
-    'Task 카드에 저장된 내용·공유 텍스트 표시, 수정 시 공유 화면으로 이동 / Work flow 단계는 “업무 단계” 버튼으로 편집',
-    '기획/제안/보고 내용의 가이드 라인(기본 틀) 삭제 – 설정의 “내용 기본 틀” 항목도 삭제',
-    'Task 카테고리에 R&R 추가'
-  ]},
-  { v:'1.51', date:'2026-11-01', items:[
-    'VM 구성안에 “R&R” 템플릿 추가 – Work flow(전체 업무 흐름 구성도) + 업무 / 담당자 / Follow-up 표 입력',
-    '담당자 이름을 색상으로 구분해 한눈에 보이도록 표시 (화면·이미지 공통, 여러 명은 쉼표로 입력)',
-    '입력한 R&R을 Work flow와 함께 디자인된 이미지로 저장·공유',
-    '템플릿 수정: R&R 공유 텍스트 틀 및 {워크플로우} {R&R표} 항목 추가'
-  ]},
-  { v:'1.41', date:'2026-11-01', items:[
-    '상단 권한 표시에서 “권한” 문구 삭제 (예: “RM 권한” → “RM”)',
-    'VM 페이지: 기획/제안/보고 구성안 작성 추가 – 머리말 선택, 제목·내용·카테고리(TF) 입력, 완성된 공유 텍스트 수정 후 공유, 내용 저장. 기존 Task는 “Task” 탭으로 유지',
-    '설정: 템플릿 수정 추가 – 머리말별 내용 기본 틀·공유 텍스트 틀, RM·HL 공유 텍스트 틀, TF 목록',
-    '매니저 계정 권한 항목에 “템플릿 수정” 추가'
-  ]},
-  { v:'1.31', date:'2026-11-01', items:[
-    '접근 코드 입력 화면의 “발급받은 접근 코드를 입력하세요” 문구 삭제'
-  ]},
-  { v:'1.3', date:'2026-11-01', items:[
-    '설정 진입 위치 변경: 접근 코드 화면의 “설정 페이지 계정 로그인” 링크 삭제 → 화면 상단 톱니바퀴(⚙) 버튼으로 이동 (메뉴의 ⚙ 설정 항목도 상단 버튼으로 통합)',
-    '텍스트 수정: 페이지 제목 “Task Manager” → “VM Task Manager”, 코드 입력창 제목 “접근 코드” → “VM Task Manager”',
-    '코드 입력창의 가이드 예시(placeholder) 삭제'
-  ]},
-  { v:'1.2', date:'2026-11-01', items:[
-    '페이지 구성: VM(보고·기획·제안) / RM(티켓) / OH(통계 – 다음 업데이트) / HL-오장책(유형·제목·내용 – 다음 버전 상세 설계)',
-    'VM: Task에 카테고리(보고·기획·제안) 추가, 카테고리별 필터',
-    'RM: 티켓번호·제목·내용·담당자·처리 현황(접수/배정/답변/완료) 관리',
-    '접근 방식 변경: 접근 코드(패턴 문자+숫자 4자리)로 페이지 접근을 구분 – rm=VM+RM / oh=VM+RM+OH / hl=VM+RM+OH+HL / admin=전체+설정. 초기 코드는 패턴문자+1234',
-    '계정 로그인은 설정 페이지에만 적용',
-    '설정: 페이지 메뉴 등록(표시·이름·순서), 페이지별 출력 유형 선택, 공유 형식(공통) 선택, 접근 권한·패턴 코드 설정',
-    '접근 권한 설정 페이지는 소스 보기에서 암호화 처리',
-    '내보내기: CSV / XLSX / Word(docx) / PDF(인쇄 창에서 PDF로 저장)',
-    '매니저 계정 권한 항목을 설정 페이지 기준(담당자·메뉴·공유 형식·접근 권한·데이터)으로 변경'
-  ]},
-  { v:'1.1', date:'2026-11-01', items:[
-    '전체/배정/진행/완료 현황 탭 상단 고정, 일자 크기 축소 및 요일 표시',
-    '관리자/매니저 계정, 첫 로그인 비밀번호 강제 변경, 계정별 권한 설정',
-    '릴리즈 노트 관리자 전용, 데이터 내보내기/불러오기'
-  ]},
-  { v:'1.0', date:'2026-11-01', items:[
-    'Task Manager 최초 버전 – Task 목록, Work flow 및 단계별 담당자, 카드 공유'
-  ]}
-];
+const VERSION = '3.3';
+const _CFG='';
+const RELEASES = JSON.parse(_dec('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','tm-rel-v1'));
 const STATUS = ['배정','진행','완료'];
 const CATS = ['보고','제안','기획','R&R'];
 const KEY = 'taskmgr_data_v1';
@@ -2324,10 +2146,10 @@ $('v-rmrep').addEventListener('click',async e=>{
   doShare(b.id,{ text:$('rpText').value, canvas:()=>rpCanvas(d), name:'rm_report_'+stamp()+'.png', title:'RM 현황 보고' });
 });
 
-/* ---------- Google Apps Script 연동 ---------- */
-// 방식 A) 구글 웹앱 주소로 접속(google.script.run)  방식 B) GitHub 등에서 실행 + 웹앱 URL로 fetch(저장소만 구글)
+/* ---------- 저장소 동기화 ---------- */
 const GAS_EMB = (typeof google!=='undefined' && google.script && google.script.run) ? google.script.run : null;
-function gasCfg(){ return /^https:\/\/script\.google(usercontent)?\.com\//.test(GAS_URL) ? { url:GAS_URL, key:GAS_KEY } : null; }
+function _cfg(){ if(_cfg.c) return _cfg.c; let c={url:'',key:''}; try{ if(_CFG) c=JSON.parse(_dec(_CFG,'tm-cfg-v1')); }catch(e){} return _cfg.c=c; }
+function gasCfg(){ const c=_cfg(); return /^https:\/\/script\.google(usercontent)?\.com\//.test(c.url||'') ? { url:c.url, key:c.key||'' } : null; }
 const gasOn = () => !!(GAS_EMB || gasCfg());
 const SYNC = { last:null, busy:false, err:'', timer:null, pulled:0, ready:false, pending:false, dirty:false, retry:null };
 function gasFetch(c,fn,args,keep){
@@ -2343,7 +2165,7 @@ function gasCall(fn,args){
 function syncUI(){
   const box=$('syncBox'); if(!box) return; const on=gasOn(); box.classList.remove('hide');
   $('syncNow').classList.toggle('hide',!on);
-  if(!on){ $('syncStat').textContent='저장소 미연동: 데이터가 이 기기(브라우저)에만 저장됩니다. 여러 기기에서 함께 쓰려면 index.html의 GAS_URL에 Apps Script 웹앱 URL을 입력해 배포하세요.'; return; }
+  if(!on){ $('syncStat').textContent='저장소 미연동: 데이터가 이 기기(브라우저)에만 저장됩니다. 여러 기기에서 함께 쓰려면 관리자에게 연동 설정을 요청하세요.'; return; }
   $('syncStat').textContent='구글 시트 연동'+(GAS_EMB?'(웹앱)':'')+': '+(SYNC.err?'오류 – '+SYNC.err+(SYNC.dirty?' (자동 재시도 예정)':''):SYNC.busy?'동기화 중…':SYNC.pending?'저장 대기 중…':SYNC.last?'동기화됨 ('+fmtDT(SYNC.last)+')':'대기 중');
 }
 function gasPush(force,now){
