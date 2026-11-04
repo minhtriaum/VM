@@ -28,11 +28,11 @@ button:disabled{opacity:.6;cursor:default}
   <div id="err" role="alert"></div>
 </div>
 <script>
+(function(){
 const _CFG='';
 function _ks(key){ let h=2166136261>>>0; for(let i=0;i<key.length;i++){ h^=key.charCodeAt(i); h=Math.imul(h,16777619)>>>0; }
   return function(){ h=(h+0x6D2B79F5)>>>0; let t=h; t=Math.imul(t^(t>>>15),t|1); t^=t+Math.imul(t^(t>>>7),t|61); return ((t^(t>>>14))>>>0)&255; }; }
 function _dec(b64,key){ const bin=atob(b64), n=new Uint8Array(bin.length), r=_ks(key); for(let i=0;i<bin.length;i++) n[i]=bin.charCodeAt(i)^r(); return new TextDecoder().decode(n); }
-(function(){
   const $=id=>document.getElementById(id);
   let cfg={url:''}; try{ if(_CFG) cfg=JSON.parse(_dec(_CFG,'tm-cfg-v1')); }catch(e){}
   function call(fn,args,token){
@@ -42,9 +42,14 @@ function _dec(b64,key){ const bin=atob(b64), n=new Uint8Array(bin.length), r=_ks
   }
   function enter(token){
     return call('gateBoot',[],token).then(function(b){
-      window.__TM={ url:cfg.url, token:token, grant:b.grant, data:b.data||'' };
+      var tm={ url:cfg.url, token:token, grant:b.grant, data:b.data||'' };
+      window.__TM=tm;
       try{ sessionStorage.setItem('tm_gt',token); }catch(e){}
-      document.open(); document.write(b.html); document.close();
+      // 새 문서 안에 인계 값을 직접 넣어, 브라우저가 window를 새로 만들어도(일부 모바일) 값이 유지되게 함
+      var inj='<script>window.__TM='+JSON.stringify(tm).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029')+';<\/script>';
+      var html=String(b.html||'');
+      if(!/<head[^>]*>/i.test(html)) html=inj+html; else html=html.replace(/<head[^>]*>/i,function(m){ return m+inj; });
+      document.open(); document.write(html); document.close();
     });
   }
   function msg(t){ $('err').textContent=t||''; }
