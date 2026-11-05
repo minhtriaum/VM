@@ -51,7 +51,15 @@ function _dec(b64,key){ const bin=atob(b64), n=new Uint8Array(bin.length), r=_ks
       var inj='<script>'+diag+'window.__TM='+JSON.stringify(tm).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029')+';<\/script>';
       var html=String(b.html||'');
       if(!/<head[^>]*>/i.test(html)) html=inj+html; else html=html.replace(/<head[^>]*>/i,function(m){ return m+inj; });
-      document.open(); document.write(html); document.close();
+      // 앱 본문은 문서 쓰기(document.write) 대신 별도 프레임으로 불러옴
+      var fr=document.createElement('iframe');
+      fr.setAttribute('allow','clipboard-write; web-share; fullscreen');
+      fr.title='VM Task Manager';
+      fr.style.cssText='position:fixed;left:0;top:0;width:100%;height:100%;border:0;background:#fff';
+      fr.src=URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'}));
+      document.body.style.padding='0'; document.body.style.background='#fff';
+      document.body.appendChild(fr);
+      var bx=$('box'); if(bx) bx.style.display='none';
     });
   }
   function msg(t){ $('err').textContent=t||''; }
